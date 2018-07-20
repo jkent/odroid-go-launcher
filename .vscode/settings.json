@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "image_cone.h": "c",
+        "freertos.h": "c",
+        "display.h": "c",
+        "spi_master.h": "c"
+    }
+}
