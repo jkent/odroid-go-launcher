@@ -114,9 +114,9 @@ short tf_draw_glyph(struct tf *tf, char c, short x, short y)
     for (short yoff = 0; yoff < tf->font->height; yoff++) {
         for (short xoff = 0; xoff < width; xoff++) {
             if (glyph[yoff * ((tf->font->width + 7) / 8) + (xoff / 8)] & (1 << (xoff % 8))) {
-                tf->fb[(y + yoff) * DISPLAY_WIDTH + x + xoff] = tf->fg_color;
+                tf->fb[(y + yoff) * DISPLAY_WIDTH + x + xoff] = (tf->fg_color << 8) | (tf->fg_color >> 8);
             } else if (!tf->transparent_bg) {
-                tf->fb[(y + yoff) * DISPLAY_WIDTH + x + xoff] = tf->bg_color;
+                tf->fb[(y + yoff) * DISPLAY_WIDTH + x + xoff] = (tf->bg_color << 8) | (tf->bg_color >> 8);
             }
         }
     }
@@ -140,7 +140,7 @@ void tf_draw_str(struct tf *tf, const char *s, short x, short y)
             if (!tf->transparent_bg && tf->bbox_width) {
                 for (short by = yoff; by < yoff + tf->font->height; by++) {
                     for (short bx = ii.width; bx < tf->bbox_width; bx++) {
-                        tf->fb[(y + by) * DISPLAY_WIDTH + x + bx] = tf->bg_color;
+                        tf->fb[(y + by) * DISPLAY_WIDTH + x + bx] = (tf->bg_color << 8) | (tf->bg_color >> 8);
                     }
                 }
             }
@@ -149,7 +149,7 @@ void tf_draw_str(struct tf *tf, const char *s, short x, short y)
            if (!tf->transparent_bg) {
                 for (short by = yoff; by < yoff + tf->font->height; by++) {
                     for (short bx = 0; bx < xoff; bx++) {
-                        tf->fb[(y + by) * DISPLAY_WIDTH + x + bx] = tf->bg_color;
+                        tf->fb[(y + by) * DISPLAY_WIDTH + x + bx] = (tf->bg_color << 8) | (tf->bg_color >> 8);
                     }
                 }
             } 
@@ -158,10 +158,10 @@ void tf_draw_str(struct tf *tf, const char *s, short x, short y)
             if (!tf->transparent_bg) {
                 for (short by = yoff; by < yoff + tf->font->height; by++) {
                     for (short bx = 0; bx < xoff; bx++) {
-                        tf->fb[(y + by) * DISPLAY_WIDTH + x + bx] = tf->bg_color;
+                        tf->fb[(y + by) * DISPLAY_WIDTH + x + bx] = (tf->bg_color << 8) | (tf->bg_color >> 8);
                     }
                     for (short bx = ii.width - xoff; bx < tf->bbox_width; bx++) {
-                        tf->fb[(y + by) * DISPLAY_WIDTH + x + bx] = tf->bg_color;
+                        tf->fb[(y + by) * DISPLAY_WIDTH + x + bx] = (tf->bg_color << 8) | (tf->bg_color >> 8);
                     }
  
                 }

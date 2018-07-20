@@ -1,5 +1,4 @@
 #include "display.h"
-#include "minmax.h"
 
 #include "freertos/FreeRTOS.h"
 #include "esp_system.h"
@@ -326,10 +325,7 @@ void display_write_all(uint16_t* buf)
 
     for (short dy = 0; dy < DISPLAY_HEIGHT; dy += PARALLEL_LINES) {
         uint16_t *pbuf = get_pbuf();
-        for (int i = 0; i < DISPLAY_WIDTH * PARALLEL_LINES; i++) {
-            uint16_t pixel = buf[DISPLAY_WIDTH * dy + i];
-            pbuf[i] = (pixel << 8) | (pixel >> 8);
-        }
+        memcpy(pbuf, buf + DISPLAY_WIDTH * dy, DISPLAY_WIDTH * PARALLEL_LINES * sizeof(uint16_t));
         send_continue_line(pbuf, DISPLAY_WIDTH, PARALLEL_LINES);
     }
 
@@ -346,7 +342,7 @@ void display_clear(uint16_t color)
 
     // clear the buffer
     for (int i = 0; i < DISPLAY_WIDTH * PARALLEL_LINES; i++) {
-        pbuf[i] = (color << 8) || (color >> 8);
+        pbuf[i] = (color << 8) | (color >> 8);
     }
 
     // clear the screen
@@ -369,11 +365,8 @@ void display_write_rect(uint16_t* buf, short x, short y, short width, short heig
     for (short dy = 0; dy < height; dy += PARALLEL_LINES) {
         uint16_t *pbuf = get_pbuf();
         short numLines = DISPLAY_HEIGHT - dy;
-        numLines = MIN(numLines, PARALLEL_LINES);
-        for (int i = 0; i < width * numLines; i++) {
-            uint16_t pixel = buf[dy * width + i];
-            pbuf[i] = pixel << 8 | pixel >> 8;
-        }
+        numLines = numLines < PARALLEL_LINES ? numLines : PARALLEL_LINES;
+        memcpy(pbuf, buf + width * dy, width * numLines * sizeof(uint16_t));
         send_continue_line(pbuf, width, numLines);
     }
 
