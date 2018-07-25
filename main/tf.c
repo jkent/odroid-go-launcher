@@ -1,9 +1,8 @@
 #include "tf.h"
 
 #include <string.h>
+#include <stdio.h>
 #include <stdlib.h>
-
-#include "../components/hardware/display.h"
 
 struct tf *tf_new()
 {
@@ -14,7 +13,7 @@ struct tf *tf_new()
 
     tf->font = NULL;
     tf->fg_color = 0xffff;
-    tf->transparent_bg = true;
+    tf->width = -1;
     return tf;
 }
 
@@ -26,7 +25,7 @@ void tf_free(struct tf *tf)
 struct tf_iterinfo {
     const char *s;
     size_t len;
-    size_t width;
+    short width;
 };
 
 static struct tf_iterinfo tf_iter_lines(struct tf *tf, const char *start)
@@ -34,6 +33,8 @@ static struct tf_iterinfo tf_iter_lines(struct tf *tf, const char *start)
     static const char *s = NULL;
     struct tf_iterinfo ii = { 0 };
     short width = 0;
+
+    if (!tf || !tf->font) abort();
 
     if (start) {
         s = start;
@@ -55,7 +56,7 @@ static struct tf_iterinfo tf_iter_lines(struct tf *tf, const char *start)
 
         short char_width = tf->font->widths ? tf->font->widths[*p - tf->font->first] : tf->font->width;
 
-        if (tf->bbox_width && width + char_width > tf->bbox_width) {
+        if (tf->width >= 0 && width + char_width > tf->width) {
             const char *q = p;
             short sub = 0;
             while (p--) {
@@ -102,21 +103,32 @@ struct tf_metrics tf_get_str_metrics(struct tf *tf, const char *s)
     return m;
 }
 
-short tf_draw_glyph(struct tf *tf, char c, short x, short y)
+short tf_draw_glyph(struct gbuf *g, struct tf *tf, char c, short x, short y)
 {
-    if (!tf->fb || c < tf->font->first || c > tf->font->last) {
-        return 0;
+    if (!g || !tf || !tf->font || c < tf->font->first || c > tf->font->last) abort();
+
+    short width = tf->font->widths ? tf->font->widths[c - tf->font->first] : tf->font->width;
+
+    short xstart = x < 0 ? -x : 0;
+    short xend = x + width > g->width ? g->width - x : width;
+    short ystart = y < 0 ? -y : 0;
+    short yend = y + tf->font->height > g->height ? g->height - y : tf->font->height;
+
+    uint16_t fg = tf->fg_color;
+    uint16_t bg = tf->bg_color;
+    if (g->endian == BIG_ENDIAN) {
+        fg = tf->fg_color << 8 | tf->fg_color >> 8;
+        bg = tf->bg_color << 8 | tf->bg_color >> 8;
     }
 
     const unsigned char *glyph = tf->font->p + ((tf->font->width + 7) / 8) * tf->font->height * (c - tf->font->first);
-    short width = tf->font->widths ? tf->font->widths[c - tf->font->first] : tf->font->width;
 
-    for (short yoff = 0; yoff < tf->font->height; yoff++) {
-        for (short xoff = 0; xoff < width; xoff++) {
+    for (short yoff = ystart; yoff < yend; yoff++) {
+        for (short xoff = xstart; xoff < xend; xoff++) {
             if (glyph[yoff * ((tf->font->width + 7) / 8) + (xoff / 8)] & (1 << (xoff % 8))) {
-                tf->fb[(y + yoff) * DISPLAY_WIDTH + x + xoff] = (tf->fg_color << 8) | (tf->fg_color >> 8);
-            } else if (!tf->transparent_bg) {
-                tf->fb[(y + yoff) * DISPLAY_WIDTH + x + xoff] = (tf->bg_color << 8) | (tf->bg_color >> 8);
+                ((uint16_t *)g->pixel_data)[(y + yoff) * g->width + x + xoff] = fg;
+            } else if (tf->fill_bg) {
+                ((uint16_t *)g->pixel_data)[(y + yoff) * g->width + x + xoff] = bg;
             }
         }
     }
@@ -124,58 +136,83 @@ short tf_draw_glyph(struct tf *tf, char c, short x, short y)
     return width;
 }
 
-void tf_draw_str(struct tf *tf, const char *s, short x, short y)
+void tf_draw_str(struct gbuf *g, struct tf *tf, const char *s, short x, short y)
 {
-    if (!tf->font || !tf->fb) {
+    if (!g || !tf || !tf->font) {
         return;
     }
 
     short xoff = 0;
     short yoff = 0;
 
+    int line = 1;
+
+    uint16_t bg = tf->bg_color;
+
+    if (g->endian == BIG_ENDIAN) {
+        bg = bg << 8 | bg >> 8;
+    }
+
     struct tf_iterinfo ii = tf_iter_lines(tf, s);
     while (true) {
-        if (tf->bbox_width == 0 || tf->align == ALIGN_LEFT) {
+        short ystart = y + yoff < 0 ? -(y + yoff) : yoff;
+        short yend = y + yoff + tf->font->height > g->height ? g->height - y : yoff + tf->font->height;
+        if (ystart >= line * tf->font->height || yend <= 0) {
+            break;
+        }
+
+        if (tf->width < 0 || tf->align == ALIGN_LEFT) {
             xoff = 0;
-            if (!tf->transparent_bg && tf->bbox_width) {
-                for (short by = yoff; by < yoff + tf->font->height; by++) {
-                    for (short bx = ii.width; bx < tf->bbox_width; bx++) {
-                        tf->fb[(y + by) * DISPLAY_WIDTH + x + bx] = (tf->bg_color << 8) | (tf->bg_color >> 8);
+            if (tf->fill_bg) {
+                short xstart = x + ii.width < 0 ? -(x + ii.width) : ii.width;
+                short xend = x + tf->width > g->width ? g->width - (x + tf->width) : tf->width;
+                for (short by = ystart; by < yend; by++) {
+                    for (short bx = xstart; bx < xend; bx++) {
+                        ((uint16_t *)g->pixel_data)[(y + by) * g->width + x + bx] = bg;
                     }
                 }
             }
         } else if (tf->align == ALIGN_RIGHT) {
-           xoff = tf->bbox_width - ii.width; 
-           if (!tf->transparent_bg) {
-                for (short by = yoff; by < yoff + tf->font->height; by++) {
-                    for (short bx = 0; bx < xoff; bx++) {
-                        tf->fb[(y + by) * DISPLAY_WIDTH + x + bx] = (tf->bg_color << 8) | (tf->bg_color >> 8);
+            xoff = tf->width - ii.width; 
+            if (tf->fill_bg) {
+                short xstart = x < 0 ? -x : 0;
+                short xend = x + xoff > g->width ? g->width - x : xoff;
+                for (short by = ystart; by < yend; by++) {
+                    for (short bx = xstart; bx < xend; bx++) {
+                        ((uint16_t *)g->pixel_data)[(y + by) * g->width + x + bx] = bg;
                     }
                 }
             } 
         } else if (tf->align == ALIGN_CENTER) {
-            xoff = (tf->bbox_width - ii.width) / 2;
-            if (!tf->transparent_bg) {
-                for (short by = yoff; by < yoff + tf->font->height; by++) {
-                    for (short bx = 0; bx < xoff; bx++) {
-                        tf->fb[(y + by) * DISPLAY_WIDTH + x + bx] = (tf->bg_color << 8) | (tf->bg_color >> 8);
+            xoff = (tf->width - ii.width) / 2;
+            if (tf->fill_bg) {
+                short xstart = x < 0 ? -x : 0;
+                short xend = x + xoff > g->width ? g->width - x : xoff;
+                for (short by = ystart; by < yend; by++) {
+                    for (short bx = xstart; bx < xend; bx++) {
+                        ((uint16_t *)g->pixel_data)[(y + by) * g->width + x + bx] = bg;
                     }
-                    for (short bx = ii.width - xoff; bx < tf->bbox_width; bx++) {
-                        tf->fb[(y + by) * DISPLAY_WIDTH + x + bx] = (tf->bg_color << 8) | (tf->bg_color >> 8);
-                    }
- 
                 }
+                xstart = x + xoff + ii.width < 0 ? -x : xoff + ii.width;
+                xend = x + tf->width > g->width ? g->width - x : tf->width;
+                for (short by = ystart; by < yend; by++) {
+                    for (short bx = xstart; bx < xend; bx++) {
+                        ((uint16_t *)g->pixel_data)[(y + by) * g->width + x + bx] = bg;
+                    }
+                } 
             }
         }
 
         for (int i = 0; i < ii.len; i++) {
-            xoff += tf_draw_glyph(tf, ii.s[i], x + xoff, y + yoff);
+            xoff += tf_draw_glyph(g, tf, ii.s[i], x + xoff, y + yoff);
         }
 
         ii = tf_iter_lines(tf, NULL);
         if (ii.len == 0) {
             break;
         }
+
         yoff += tf->font->height;
+        line++;
     }
 }

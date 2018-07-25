@@ -317,21 +317,6 @@ void display_poweroff()
     }
 }
 
-void display_write_all(uint16_t* buf)
-{
-    xTaskToNotify = xTaskGetCurrentTaskHandle();
-
-    send_reset_drawing(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT);
-
-    for (short dy = 0; dy < DISPLAY_HEIGHT; dy += PARALLEL_LINES) {
-        uint16_t *pbuf = get_pbuf();
-        memcpy(pbuf, buf + DISPLAY_WIDTH * dy, DISPLAY_WIDTH * PARALLEL_LINES * sizeof(uint16_t));
-        send_continue_line(pbuf, DISPLAY_WIDTH, PARALLEL_LINES);
-    }
-
-    send_continue_wait();
-}
-
 void display_clear(uint16_t color)
 {
     xTaskToNotify = xTaskGetCurrentTaskHandle();
@@ -353,21 +338,42 @@ void display_clear(uint16_t color)
     send_continue_wait();
 }
 
-void display_write_rect(uint16_t* buf, short x, short y, short width, short height)
+void display_write_all(struct gbuf *g)
 {
-    if (x < 0 || y < 0) abort();
-    if (width < 1 || height < 1) abort();
+    if (g->width != DISPLAY_WIDTH || g->height != DISPLAY_HEIGHT) abort();
+    if (g->bytes_per_pixel != 2) abort();
+    if (g->endian != BIG_ENDIAN) abort();
 
     xTaskToNotify = xTaskGetCurrentTaskHandle();
 
-    send_reset_drawing(x, y, width, height);
+    send_reset_drawing(0, 0, g->width, g->height);
 
-    for (short dy = 0; dy < height; dy += PARALLEL_LINES) {
+    for (short dy = 0; dy < g->height; dy += PARALLEL_LINES) {
+        uint16_t *pbuf = get_pbuf();
+        memcpy(pbuf, ((uint16_t *)g->pixel_data) + g->width * dy, g->width * PARALLEL_LINES * sizeof(uint16_t));
+        send_continue_line(pbuf, g->width, PARALLEL_LINES);
+    }
+
+    send_continue_wait();
+}
+
+void display_write_rect(struct gbuf *g, short x, short y)
+{
+    if (x < 0 || y < 0) abort();
+    if (g->width < 1 || g->height < 1) abort();
+    if (g->bytes_per_pixel != 2) abort();
+    if (g->endian != BIG_ENDIAN) abort();
+
+    xTaskToNotify = xTaskGetCurrentTaskHandle();
+
+    send_reset_drawing(x, y, g->width, g->height);
+
+    for (short dy = 0; dy < g->height; dy += PARALLEL_LINES) {
         uint16_t *pbuf = get_pbuf();
         short numLines = DISPLAY_HEIGHT - dy;
         numLines = numLines < PARALLEL_LINES ? numLines : PARALLEL_LINES;
-        memcpy(pbuf, buf + width * dy, width * numLines * sizeof(uint16_t));
-        send_continue_line(pbuf, width, numLines);
+        memcpy(pbuf, ((uint16_t *)g->pixel_data) + g->width * dy, g->width * numLines * sizeof(uint16_t));
+        send_continue_line(pbuf, g->width, numLines);
     }
 
     send_continue_wait();
