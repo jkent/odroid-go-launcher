@@ -23,6 +23,7 @@
                 "${IDF_PATH}/components/esptool_py/include",
                 "${IDF_PATH}/components/ethernet/include",
                 "${IDF_PATH}/components/expat/include",
+                "${IDF_PATH}/components/fatfs/src",
                 "${IDF_PATH}/components/fatfs/include",
                 "${IDF_PATH}/components/freertos/include",
                 "${IDF_PATH}/components/heap/include",

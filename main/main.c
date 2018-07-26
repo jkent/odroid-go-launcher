@@ -28,8 +28,6 @@ void app_main(void)
 
     struct tf *tf = tf_new();
     tf->font = &font_OpenSans_Regular_11X12;
-    tf->bg_color = 0b1111100000000000;
-    tf->fill_bg = true;
 
     uint16_t sample;
     char s[128];
