@@ -1,17 +1,28 @@
 #include "gbuf.h"
 
+#include "esp_heap_caps.h"
+
 #include <stdint.h>
 #include <stdlib.h>
 
 
-struct gbuf *gbuf_new(uint16_t width, uint16_t height, uint16_t bytes_per_pixel, uint16_t endian)
+struct gbuf *gbuf_new(uint16_t width, uint16_t height, uint16_t bytes_per_pixel, uint16_t endian, bool spiflash)
 {
-    struct gbuf *g = malloc(sizeof(struct gbuf) + width * height * bytes_per_pixel);
+    uint32_t caps;
+    if (spiflash) {
+        caps = MALLOC_CAP_SPIRAM;
+    } else {
+        caps = MALLOC_CAP_INTERNAL;
+    }
+
+    struct gbuf *g = heap_caps_malloc(sizeof(struct gbuf) + width * height * bytes_per_pixel, caps);
     if (!g) abort();
+
     g->width = width;
     g->height = height;
     g->bytes_per_pixel = bytes_per_pixel;
     g->endian = endian;
+
     return g;
 }
 

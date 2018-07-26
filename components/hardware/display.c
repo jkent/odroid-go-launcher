@@ -1,6 +1,7 @@
 #include "display.h"
 
 #include "freertos/FreeRTOS.h"
+#include "esp_heap_caps.h"
 #include "esp_system.h"
 #include "esp_event.h"
 #include "driver/gpio.h"
@@ -32,6 +33,7 @@ static bool waitForTransactions = false;
 
 #define PARALLEL_LINES (5)
 
+static struct gbuf *fb;
 static uint16_t* pbuf[2];
 
 /*
@@ -230,15 +232,15 @@ static uint16_t *get_pbuf(void) {
     return result;
 }
 
-void display_init()
+struct gbuf *display_init(void)
 {
-    // Init
-    const size_t lineSize = 320 * PARALLEL_LINES * sizeof(uint16_t);
-    pbuf[0] = heap_caps_malloc(lineSize, MALLOC_CAP_DMA);
-    pbuf[1] = heap_caps_malloc(lineSize, MALLOC_CAP_DMA);
-    if (!pbuf[0] || !pbuf[1]) {
-        abort();
-    }
+    fb = gbuf_new(DISPLAY_WIDTH, DISPLAY_HEIGHT, 2, BIG_ENDIAN, false);
+
+    pbuf[0] = heap_caps_malloc(320 * PARALLEL_LINES * sizeof(uint16_t), MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
+    if (!pbuf[0]) abort();
+
+    pbuf[1] = heap_caps_malloc(320 * PARALLEL_LINES * sizeof(uint16_t), MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
+    if (!pbuf[1]) abort();
 
 	// Initialize transactions
     for (int x = 0; x < 8; x++) {
@@ -286,6 +288,8 @@ void display_init()
     assert(ret == ESP_OK);
 
     ili_init();
+
+    return fb;
 }
 
 void display_drain(void)
@@ -338,26 +342,22 @@ void display_clear(uint16_t color)
     send_continue_wait();
 }
 
-void display_write_all(struct gbuf *g)
+void display_draw(void)
 {
-    if (g->width != DISPLAY_WIDTH || g->height != DISPLAY_HEIGHT) abort();
-    if (g->bytes_per_pixel != 2) abort();
-    if (g->endian != BIG_ENDIAN) abort();
-
     xTaskToNotify = xTaskGetCurrentTaskHandle();
 
-    send_reset_drawing(0, 0, g->width, g->height);
+    send_reset_drawing(0, 0, fb->width, fb->height);
 
-    for (short dy = 0; dy < g->height; dy += PARALLEL_LINES) {
+    for (short dy = 0; dy < fb->height; dy += PARALLEL_LINES) {
         uint16_t *pbuf = get_pbuf();
-        memcpy(pbuf, ((uint16_t *)g->pixel_data) + g->width * dy, g->width * PARALLEL_LINES * sizeof(uint16_t));
-        send_continue_line(pbuf, g->width, PARALLEL_LINES);
+        memcpy(pbuf, ((uint16_t *)fb->pixel_data) + fb->width * dy, fb->width * PARALLEL_LINES * sizeof(uint16_t));
+        send_continue_line(pbuf, fb->width, PARALLEL_LINES);
     }
 
     send_continue_wait();
 }
 
-void display_write_rect(struct gbuf *g, short x, short y)
+void display_draw_rect(struct gbuf *g, short x, short y)
 {
     if (x < 0 || y < 0) abort();
     if (g->width < 1 || g->height < 1) abort();
