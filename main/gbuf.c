@@ -6,7 +6,7 @@
 
 struct gbuf *gbuf_new(uint16_t width, uint16_t height, uint16_t bytes_per_pixel, uint16_t endian)
 {
-    struct gbuf *g = calloc(1, sizeof(struct gbuf) + width * height * bytes_per_pixel);
+    struct gbuf *g = malloc(sizeof(struct gbuf) + width * height * bytes_per_pixel);
     if (!g) abort();
     g->width = width;
     g->height = height;
