@@ -21,12 +21,13 @@
 
 void app_main(void)
 {
+    struct gbuf *fb = gbuf_new(DISPLAY_WIDTH, DISPLAY_HEIGHT, 2, BIG_ENDIAN);
+
     nvs_flash_init();
     display_init();
     backlight_init();
     keypad_init();
 
-    struct gbuf *fb = gbuf_new(DISPLAY_WIDTH, DISPLAY_HEIGHT, 2, BIG_ENDIAN);
     memset(fb->pixel_data, 0, fb->width * fb->height * fb->bytes_per_pixel);
     short x = DISPLAY_WIDTH/2 - image_cone.width/2;
     short y = DISPLAY_HEIGHT/2 - image_cone.height/2;
@@ -88,7 +89,6 @@ void app_main(void)
 
         sprintf(s, "Volume: %s", debounce & KEYPAD_VOLUME ? "DOWN" : "UP        ");
         tf_draw_str(fb, tf, s, 12, 120);
-
 
         display_write_all(fb);
     }
