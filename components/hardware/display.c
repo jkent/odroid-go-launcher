@@ -279,12 +279,12 @@ struct gbuf *display_init(void)
     devcfg.queue_size = 7;                          // We want to be able to queue 7 transactions at a time
     devcfg.pre_cb = ili_spi_pre_transfer_callback;  // Specify pre-transfer callback to handle D/C line
     devcfg.post_cb = ili_spi_post_transfer_callback;
-    devcfg.flags = 0;
+    devcfg.flags = SPI_DEVICE_NO_DUMMY;
 
-    ret = spi_bus_initialize(VSPI_HOST, &buscfg, 1);
+    ret = spi_bus_initialize(HSPI_HOST, &buscfg, 1);
     assert(ret == ESP_OK);
 
-    ret = spi_bus_add_device(VSPI_HOST, &devcfg, &spi);
+    ret = spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
     assert(ret == ESP_OK);
 
     ili_init();
