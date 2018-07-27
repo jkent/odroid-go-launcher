@@ -33,7 +33,6 @@ static bool waitForTransactions = false;
 
 #define PARALLEL_LINES (5)
 
-static struct gbuf *fb;
 static uint16_t* pbuf[2];
 
 /*
@@ -232,10 +231,8 @@ static uint16_t *get_pbuf(void) {
     return result;
 }
 
-struct gbuf *display_init(void)
+void display_init(void)
 {
-    fb = gbuf_new(DISPLAY_WIDTH, DISPLAY_HEIGHT, 2, BIG_ENDIAN, false);
-
     pbuf[0] = heap_caps_malloc(320 * PARALLEL_LINES * sizeof(uint16_t), MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
     if (!pbuf[0]) abort();
 
@@ -288,8 +285,6 @@ struct gbuf *display_init(void)
     assert(ret == ESP_OK);
 
     ili_init();
-
-    return fb;
 }
 
 void display_drain(void)
@@ -342,7 +337,7 @@ void display_clear(uint16_t color)
     send_continue_wait();
 }
 
-void display_draw(void)
+void display_draw(struct gbuf *fb)
 {
     xTaskToNotify = xTaskGetCurrentTaskHandle();
 

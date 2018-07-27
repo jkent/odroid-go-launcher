@@ -35,7 +35,8 @@ static void keypad_task(void *arg)
 
 void app_main(void)
 {
-    struct gbuf *fb = display_init();
+    struct gbuf *fb = gbuf_new(DISPLAY_WIDTH, DISPLAY_HEIGHT, 2, BIG_ENDIAN, true);
+    display_init();
     memset(fb->pixel_data, 0, fb->width * fb->height * fb->bytes_per_pixel);
 
     esp_err_t err = sdcard_init("/sd");
@@ -51,7 +52,7 @@ void app_main(void)
     strcpy(s, "Press A to boot hello-world.bin app.");
     struct tf_metrics m = tf_get_str_metrics(tf, s);
     tf_draw_str(fb, tf, s, DISPLAY_WIDTH/2 - m.width/2, DISPLAY_HEIGHT/2 - m.height/2);
-    display_draw();
+    display_draw(fb);
 
     xTaskCreatePinnedToCore(&keypad_task, "keypad_task", 1024, NULL, 5, NULL, APP_CPU_NUM);
 
@@ -63,7 +64,7 @@ void app_main(void)
     strcpy(s, "Loading...");
     m = tf_get_str_metrics(tf, s);
     tf_draw_str(fb, tf, s, DISPLAY_WIDTH/2 - m.width/2, DISPLAY_HEIGHT/2 - m.height/2);
-    display_draw();
+    display_draw(fb);
 
     FILE *f = fopen("/sd/apps/hello-world.bin", "rb");
     if (!f) {
