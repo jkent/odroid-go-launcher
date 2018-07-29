@@ -9,11 +9,11 @@
 #define SDCARD_IO_CLK GPIO_NUM_18
 #define SDCARD_IO_CS GPIO_NUM_22
 
-sdmmc_card_t *card = NULL;
+static sdmmc_card_t *sdcard = NULL;
 
 esp_err_t sdcard_init(const char *mount_path)
 {
-    if (card) {
+    if (sdcard) {
         return ESP_FAIL;
     }
 
@@ -31,14 +31,19 @@ esp_err_t sdcard_init(const char *mount_path)
     mount_config.format_if_mount_failed = false;
     mount_config.max_files = 5;
 
-    return esp_vfs_fat_sdmmc_mount(mount_path, &host, &slot_config, &mount_config, &card);
+    return esp_vfs_fat_sdmmc_mount(mount_path, &host, &slot_config, &mount_config, &sdcard);
 }
 
 esp_err_t sdcard_deinit()
 {
-    if (!card) {
+    if (!sdcard) {
         return ESP_FAIL;
     }
 
     return esp_vfs_fat_sdmmc_unmount();
+}
+
+bool sdcard_present(void)
+{
+    return sdcard != NULL;
 }

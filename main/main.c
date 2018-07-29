@@ -26,22 +26,12 @@ void app_main(void)
 
     backlight_init();
     keypad_init();
+    sdcard_init("/sd");
 
     struct tf *tf = tf_new();
     tf->font = &font_OpenSans_Regular_11X12;
 
     char s[64];
-
-    esp_err_t err = sdcard_init("/sd");
-    if (err) {
-        strcpy(s, "Card error.");
-        struct tf_metrics m = tf_get_str_metrics(tf, s);
-        tf_draw_str(fb, tf, s, DISPLAY_WIDTH/2 - m.width/2, DISPLAY_HEIGHT/2 - m.height/2);
-        display_draw(fb);
-        while (true) {
-            vTaskDelay(100 / portTICK_PERIOD_MS);
-        }
-    }
 
     strcpy(s, "Press A to boot hello-world.bin app.");
     struct tf_metrics m = tf_get_str_metrics(tf, s);
@@ -60,10 +50,18 @@ void app_main(void)
     memset(fb->pixel_data, 0, fb->width * fb->height * fb->bytes_per_pixel);
     strcpy(s, "Loading...");
     m = tf_get_str_metrics(tf, s);
-    x =  DISPLAY_WIDTH/2 - m.width/2;
+    x = DISPLAY_WIDTH/2 - m.width/2;
     y = DISPLAY_HEIGHT/2 - m.height/2;
     tf_draw_str(fb, tf, s, x, y);
     display_update();
 
     app_run("/sd/apps/hello-world.bin");
+
+    memset(fb->pixel_data, 0, fb->width * fb->height * fb->bytes_per_pixel);
+    strcpy(s, "App not found.");
+    m = tf_get_str_metrics(tf, s);
+    x = DISPLAY_WIDTH/2 - m.width/2;
+    y = DISPLAY_HEIGHT/2 - m.height/2;
+    tf_draw_str(fb, tf, s, x, y);
+    display_update();
 }

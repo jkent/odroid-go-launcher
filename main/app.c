@@ -1,4 +1,5 @@
 #include "app.h"
+#include "../components/hardware/sdcard.h"
 
 #include "esp_ota_ops.h"
 #include "esp_partition.h"
@@ -209,7 +210,9 @@ void app_run(const char *app)
         nvs_get_str(nvs, key, nvs_version, &len);
         
         printf("sd: %s, nvs: %s\n", sd_version, nvs_version);
-        if (strchr(sd_version, '.') && strchr(nvs_version, '.')) {
+        if (!sdcard_present()) {
+            do_flash = false;
+        } else if (strchr(sd_version, '.') && strchr(nvs_version, '.')) {
             if (semvercmp(sd_version, nvs_version) <= 0) {
                 do_flash = false;
             }
