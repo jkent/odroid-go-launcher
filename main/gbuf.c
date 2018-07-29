@@ -6,16 +6,9 @@
 #include <stdlib.h>
 
 
-struct gbuf *gbuf_new(uint16_t width, uint16_t height, uint16_t bytes_per_pixel, uint16_t endian, bool spiflash)
+struct gbuf *gbuf_new(uint16_t width, uint16_t height, uint16_t bytes_per_pixel, uint16_t endian)
 {
-    uint32_t caps;
-    if (spiflash) {
-        caps = MALLOC_CAP_SPIRAM;
-    } else {
-        caps = MALLOC_CAP_INTERNAL;
-    }
-
-    struct gbuf *g = heap_caps_malloc(sizeof(struct gbuf) + width * height * bytes_per_pixel, caps);
+    struct gbuf *g = malloc(sizeof(struct gbuf) + width * height * bytes_per_pixel);
     if (!g) abort();
 
     g->width = width;

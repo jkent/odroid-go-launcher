@@ -34,6 +34,7 @@ static bool waitForTransactions = false;
 #define PARALLEL_LINES (5)
 
 static uint16_t* pbuf[2];
+static struct gbuf *fb;
 
 /*
  The ILI9341 needs a bunch of command/argument values to be initialized. They are stored in this struct.
@@ -231,8 +232,10 @@ static uint16_t *get_pbuf(void) {
     return result;
 }
 
-void display_init(void)
+struct gbuf *display_init(void)
 {
+    fb = gbuf_new(DISPLAY_WIDTH, DISPLAY_HEIGHT, 2, BIG_ENDIAN);
+
     pbuf[0] = heap_caps_malloc(320 * PARALLEL_LINES * sizeof(uint16_t), MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
     if (!pbuf[0]) abort();
 
@@ -285,6 +288,8 @@ void display_init(void)
     assert(ret == ESP_OK);
 
     ili_init();
+
+    return fb;
 }
 
 void display_drain(void)
@@ -337,7 +342,7 @@ void display_clear(uint16_t color)
     send_continue_wait();
 }
 
-void display_draw(struct gbuf *fb)
+void display_update(void)
 {
     xTaskToNotify = xTaskGetCurrentTaskHandle();
 
@@ -352,23 +357,39 @@ void display_draw(struct gbuf *fb)
     send_continue_wait();
 }
 
-void display_draw_rect(struct gbuf *g, short x, short y)
+void display_update_rect(short x, short y, short width, short height)
 {
-    if (x < 0 || y < 0) abort();
-    if (g->width < 1 || g->height < 1) abort();
-    if (g->bytes_per_pixel != 2) abort();
-    if (g->endian != BIG_ENDIAN) abort();
+    assert(x >= 0);
+    assert(y >= 0);
+    assert(width > 0);
+    assert(height > 0);
+    assert(x + width <= fb->width);
+    assert(y + height <= fb->height);
 
     xTaskToNotify = xTaskGetCurrentTaskHandle();
 
-    send_reset_drawing(x, y, g->width, g->height);
+    send_reset_drawing(x, y, width, height);
 
-    for (short dy = 0; dy < g->height; dy += PARALLEL_LINES) {
-        uint16_t *pbuf = get_pbuf();
-        short numLines = DISPLAY_HEIGHT - dy;
-        numLines = numLines < PARALLEL_LINES ? numLines : PARALLEL_LINES;
-        memcpy(pbuf, ((uint16_t *)g->pixel_data) + g->width * dy, g->width * numLines * sizeof(uint16_t));
-        send_continue_line(pbuf, g->width, numLines);
+    if (width == fb->width) {
+        for (short dy = 0; dy < height; dy += PARALLEL_LINES) {
+            uint16_t *pbuf = get_pbuf();
+            short numLines = height - dy;
+            numLines = numLines < PARALLEL_LINES ? numLines : PARALLEL_LINES; 
+            memcpy(pbuf, ((uint16_t *)fb->pixel_data) + fb->width * (y + dy) + x, width * numLines * sizeof(uint16_t));
+            send_continue_line(pbuf, width, numLines);
+        }
+    } else {
+        for (short dy = 0; dy < height; dy += PARALLEL_LINES) {
+            uint16_t *pbuf = get_pbuf();
+            short numLines = height - dy;
+            numLines = numLines < PARALLEL_LINES ? numLines : PARALLEL_LINES;
+            for (short line = 0; line < numLines; line++) {
+                memcpy(pbuf + width * line, ((uint16_t *)fb->pixel_data) + fb->width * (y + dy + line) + x, width * sizeof(uint16_t));
+            }
+            send_continue_line(pbuf, width, numLines);
+        }
+
+
     }
 
     send_continue_wait();

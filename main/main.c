@@ -20,9 +20,9 @@
 void app_main(void)
 {
     nvs_flash_init();
-    struct gbuf *fb = gbuf_new(DISPLAY_WIDTH, DISPLAY_HEIGHT, 2, BIG_ENDIAN, true);
+    struct gbuf *fb = display_init();
     memset(fb->pixel_data, 0, fb->width * fb->height * fb->bytes_per_pixel);
-    display_init();
+    display_update();
 
     backlight_init();
     keypad_init();
@@ -45,8 +45,10 @@ void app_main(void)
 
     strcpy(s, "Press A to boot hello-world.bin app.");
     struct tf_metrics m = tf_get_str_metrics(tf, s);
-    tf_draw_str(fb, tf, s, DISPLAY_WIDTH/2 - m.width/2, DISPLAY_HEIGHT/2 - m.height/2);
-    display_draw(fb);
+    short x =  DISPLAY_WIDTH/2 - m.width/2;
+    short y = DISPLAY_HEIGHT/2 - m.height/2;
+    tf_draw_str(fb, tf, s, x, y);
+    display_update_rect(x, y, m.width, m.height);
 
     uint16_t keypad = 0;
     while (!(keypad & KEYPAD_A)) {
@@ -58,8 +60,10 @@ void app_main(void)
     memset(fb->pixel_data, 0, fb->width * fb->height * fb->bytes_per_pixel);
     strcpy(s, "Loading...");
     m = tf_get_str_metrics(tf, s);
-    tf_draw_str(fb, tf, s, DISPLAY_WIDTH/2 - m.width/2, DISPLAY_HEIGHT/2 - m.height/2);
-    display_draw(fb);
+    x =  DISPLAY_WIDTH/2 - m.width/2;
+    y = DISPLAY_HEIGHT/2 - m.height/2;
+    tf_draw_str(fb, tf, s, x, y);
+    display_update();
 
     app_run("/sd/apps/hello-world.bin");
 }
