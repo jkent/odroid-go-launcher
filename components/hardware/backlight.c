@@ -18,7 +18,7 @@ void backlight_init(void)
     ledc_timer_config_t ledc_timer;
     memset(&ledc_timer, 0, sizeof(ledc_timer));
 
-    ledc_timer.bit_num = LEDC_TIMER_13_BIT; //set timer counter bit number
+    ledc_timer.duty_resolution = LEDC_TIMER_13_BIT; //set duty resolution
     ledc_timer.freq_hz = 5000;              //set frequency of pwm
     ledc_timer.speed_mode = LEDC_LOW_SPEED_MODE;   //timer mode,
     ledc_timer.timer_num = LEDC_TIMER_0;    //timer index
