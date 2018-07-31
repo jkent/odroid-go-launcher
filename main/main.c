@@ -11,6 +11,7 @@
 #include "gbuf.h"
 #include "tf.h"
 #include "OpenSans_Regular_11X12.h"
+#include "statusbar.h"
 
 #include <errno.h>
 #include <stdint.h>
@@ -19,14 +20,17 @@
 
 void app_main(void)
 {
-    nvs_flash_init();
+    backlight_init();
     struct gbuf *fb = display_init();
+    xSemaphoreTake(fb->mutex, portMAX_DELAY);
     memset(fb->pixel_data, 0, fb->width * fb->height * fb->bytes_per_pixel);
     display_update();
+    xSemaphoreGive(fb->mutex);
 
-    backlight_init();
-    keypad_init();
+    nvs_flash_init();
     sdcard_init("/sd");
+    statusbar_init(fb);
+    keypad_init();
 
     struct tf *tf = tf_new();
     tf->font = &font_OpenSans_Regular_11X12;
@@ -37,8 +41,10 @@ void app_main(void)
     struct tf_metrics m = tf_get_str_metrics(tf, s);
     short x =  DISPLAY_WIDTH/2 - m.width/2;
     short y = DISPLAY_HEIGHT/2 - m.height/2;
+    xSemaphoreTake(fb->mutex, portMAX_DELAY);
     tf_draw_str(fb, tf, s, x, y);
     display_update_rect(x, y, m.width, m.height);
+    xSemaphoreGive(fb->mutex);
 
     uint16_t keypad = 0;
     while (!(keypad & KEYPAD_A)) {
@@ -52,8 +58,10 @@ void app_main(void)
     m = tf_get_str_metrics(tf, s);
     x = DISPLAY_WIDTH/2 - m.width/2;
     y = DISPLAY_HEIGHT/2 - m.height/2;
+    xSemaphoreTake(fb->mutex, portMAX_DELAY);
     tf_draw_str(fb, tf, s, x, y);
     display_update();
+    xSemaphoreGive(fb->mutex);
 
     app_run("/sd/apps/hello-world.bin");
 
@@ -62,6 +70,8 @@ void app_main(void)
     m = tf_get_str_metrics(tf, s);
     x = DISPLAY_WIDTH/2 - m.width/2;
     y = DISPLAY_HEIGHT/2 - m.height/2;
+    xSemaphoreTake(fb->mutex, portMAX_DELAY);
     tf_draw_str(fb, tf, s, x, y);
     display_update();
+    xSemaphoreGive(fb->mutex);
 }

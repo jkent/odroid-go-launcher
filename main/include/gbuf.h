@@ -1,5 +1,8 @@
 #pragma once
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <machine/endian.h>
@@ -14,8 +17,9 @@ struct gimp_image {
 struct gbuf {
   uint16_t width;
   uint16_t height;
-  uint16_t bytes_per_pixel; /* 16:RGB16, 24:RGB, 32:RGBA */  
+  uint16_t bytes_per_pixel; /* 2:RGB16, 3:RGB, 4:RGBA */  
   uint16_t endian;
+  SemaphoreHandle_t mutex;
   uint8_t  pixel_data[];
 };
 
