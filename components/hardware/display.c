@@ -34,7 +34,7 @@ static bool waitForTransactions = false;
 #define PARALLEL_LINES (5)
 
 static uint16_t* pbuf[2];
-static struct gbuf *fb;
+static struct gbuf_t *fb;
 
 /*
  The ILI9341 needs a bunch of command/argument values to be initialized. They are stored in this struct.
@@ -232,7 +232,7 @@ static uint16_t *get_pbuf(void) {
     return result;
 }
 
-struct gbuf *display_init(void)
+struct gbuf_t *display_init(void)
 {
     fb = gbuf_new(DISPLAY_WIDTH, DISPLAY_HEIGHT, 2, BIG_ENDIAN);
 
@@ -357,36 +357,36 @@ void display_update(void)
     send_continue_wait();
 }
 
-void display_update_rect(short x, short y, short width, short height)
+void display_update_rect(struct rect_t rect)
 {
-    assert(x >= 0);
-    assert(y >= 0);
-    assert(width > 0);
-    assert(height > 0);
-    assert(x + width <= fb->width);
-    assert(y + height <= fb->height);
+    assert(rect.x >= 0);
+    assert(rect.y >= 0);
+    assert(rect.width > 0);
+    assert(rect.height > 0);
+    assert(rect.x + rect.width <= fb->width);
+    assert(rect.y + rect.height <= fb->height);
 
     xTaskToNotify = xTaskGetCurrentTaskHandle();
 
-    send_reset_drawing(x, y, width, height);
+    send_reset_drawing(rect.x, rect.y, rect.width, rect.height);
 
-    if (width == fb->width) {
-        for (short dy = 0; dy < height; dy += PARALLEL_LINES) {
+    if (rect.width == fb->width) {
+        for (short dy = 0; dy < rect.height; dy += PARALLEL_LINES) {
             uint16_t *pbuf = get_pbuf();
-            short numLines = height - dy;
+            short numLines = rect.height - dy;
             numLines = numLines < PARALLEL_LINES ? numLines : PARALLEL_LINES; 
-            memcpy(pbuf, ((uint16_t *)fb->pixel_data) + fb->width * (y + dy) + x, width * numLines * sizeof(uint16_t));
-            send_continue_line(pbuf, width, numLines);
+            memcpy(pbuf, ((uint16_t *)fb->pixel_data) + fb->width * (rect.y + dy) + rect.x, rect.width * numLines * sizeof(uint16_t));
+            send_continue_line(pbuf, rect.width, numLines);
         }
     } else {
-        for (short dy = 0; dy < height; dy += PARALLEL_LINES) {
+        for (short dy = 0; dy < rect.height; dy += PARALLEL_LINES) {
             uint16_t *pbuf = get_pbuf();
-            short numLines = height - dy;
+            short numLines = rect.height - dy;
             numLines = numLines < PARALLEL_LINES ? numLines : PARALLEL_LINES;
             for (short line = 0; line < numLines; line++) {
-                memcpy(pbuf + width * line, ((uint16_t *)fb->pixel_data) + fb->width * (y + dy + line) + x, width * sizeof(uint16_t));
+                memcpy(pbuf + rect.width * line, ((uint16_t *)fb->pixel_data) + fb->width * (rect.y + dy + line) + rect.x, rect.width * sizeof(uint16_t));
             }
-            send_continue_line(pbuf, width, numLines);
+            send_continue_line(pbuf, rect.width, numLines);
         }
 
 

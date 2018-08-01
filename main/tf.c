@@ -34,7 +34,8 @@ static struct tf_iterinfo tf_iter_lines(struct tf *tf, const char *start)
     struct tf_iterinfo ii = { 0 };
     short width = 0;
 
-    if (!tf || !tf->font) abort();
+    assert(tf != NULL);
+    assert(tf->font != NULL);
 
     if (start) {
         s = start;
@@ -103,16 +104,20 @@ struct tf_metrics tf_get_str_metrics(struct tf *tf, const char *s)
     return m;
 }
 
-short tf_draw_glyph(struct gbuf *g, struct tf *tf, char c, short x, short y)
+short tf_draw_glyph(struct gbuf_t *g, struct tf *tf, char c, struct point_t p)
 {
-    if (!g || !tf || !tf->font || c < tf->font->first || c > tf->font->last) abort();
+    assert(g != NULL);
+    assert(tf != NULL);
+    assert(tf->font != NULL);
+    assert(c >= tf->font->first);
+    assert(c <= tf->font->last);
 
     short width = tf->font->widths ? tf->font->widths[c - tf->font->first] : tf->font->width;
 
-    short xstart = x < 0 ? -x : 0;
-    short xend = x + width > g->width ? g->width - x : width;
-    short ystart = y < 0 ? -y : 0;
-    short yend = y + tf->font->height > g->height ? g->height - y : tf->font->height;
+    short xstart = p.x < 0 ? -p.x : 0;
+    short xend = p.x + width > g->width ? g->width - p.x : width;
+    short ystart = p.y < 0 ? -p.y : 0;
+    short yend = p.y + tf->font->height > g->height ? g->height - p.y : tf->font->height;
 
     uint16_t fg = tf->fg_color;
     uint16_t bg = tf->bg_color;
@@ -126,9 +131,9 @@ short tf_draw_glyph(struct gbuf *g, struct tf *tf, char c, short x, short y)
     for (short yoff = ystart; yoff < yend; yoff++) {
         for (short xoff = xstart; xoff < xend; xoff++) {
             if (glyph[yoff * ((tf->font->width + 7) / 8) + (xoff / 8)] & (1 << (xoff % 8))) {
-                ((uint16_t *)g->pixel_data)[(y + yoff) * g->width + x + xoff] = fg;
+                ((uint16_t *)g->pixel_data)[(p.y + yoff) * g->width + p.x + xoff] = fg;
             } else if (tf->fill_bg) {
-                ((uint16_t *)g->pixel_data)[(y + yoff) * g->width + x + xoff] = bg;
+                ((uint16_t *)g->pixel_data)[(p.y + yoff) * g->width + p.x + xoff] = bg;
             }
         }
     }
@@ -136,16 +141,14 @@ short tf_draw_glyph(struct gbuf *g, struct tf *tf, char c, short x, short y)
     return width;
 }
 
-void tf_draw_str(struct gbuf *g, struct tf *tf, const char *s, short x, short y)
+void tf_draw_str(struct gbuf_t *g, struct tf *tf, const char *s, struct point_t p)
 {
-    if (!g || !tf || !tf->font) {
-        return;
-    }
+    assert(g != NULL);
+    assert(tf != NULL);
+    assert(tf->font != NULL);
 
     short xoff = 0;
     short yoff = 0;
-
-    int line = 1;
 
     uint16_t bg = tf->bg_color;
 
@@ -154,9 +157,10 @@ void tf_draw_str(struct gbuf *g, struct tf *tf, const char *s, short x, short y)
     }
 
     struct tf_iterinfo ii = tf_iter_lines(tf, s);
+    int line = 1;
     while (true) {
-        short ystart = y + yoff < 0 ? -(y + yoff) : yoff;
-        short yend = y + yoff + tf->font->height > g->height ? g->height - y : yoff + tf->font->height;
+        short ystart = p.y + yoff < 0 ? -(p.y + yoff) : yoff;
+        short yend = p.y + yoff + tf->font->height > g->height ? g->height - p.y : yoff + tf->font->height;
         if (ystart >= line * tf->font->height || yend <= 0) {
             break;
         }
@@ -164,47 +168,48 @@ void tf_draw_str(struct gbuf *g, struct tf *tf, const char *s, short x, short y)
         if (tf->width < 0 || tf->align == ALIGN_LEFT) {
             xoff = 0;
             if (tf->fill_bg) {
-                short xstart = x + ii.width < 0 ? -(x + ii.width) : ii.width;
-                short xend = x + tf->width > g->width ? g->width - (x + tf->width) : tf->width;
+                short xstart = p.x + ii.width < 0 ? -(p.x + ii.width) : ii.width;
+                short xend = p.x + tf->width > g->width ? g->width - (p.x + tf->width) : tf->width;
                 for (short by = ystart; by < yend; by++) {
                     for (short bx = xstart; bx < xend; bx++) {
-                        ((uint16_t *)g->pixel_data)[(y + by) * g->width + x + bx] = bg;
+                        ((uint16_t *)g->pixel_data)[(p.y + by) * g->width + p.x + bx] = bg;
                     }
                 }
             }
         } else if (tf->align == ALIGN_RIGHT) {
             xoff = tf->width - ii.width; 
             if (tf->fill_bg) {
-                short xstart = x < 0 ? -x : 0;
-                short xend = x + xoff > g->width ? g->width - x : xoff;
+                short xstart = p.x < 0 ? -p.x : 0;
+                short xend = p.x + xoff > g->width ? g->width - p.x : xoff;
                 for (short by = ystart; by < yend; by++) {
                     for (short bx = xstart; bx < xend; bx++) {
-                        ((uint16_t *)g->pixel_data)[(y + by) * g->width + x + bx] = bg;
+                        ((uint16_t *)g->pixel_data)[(p.y + by) * g->width + p.x + bx] = bg;
                     }
                 }
             } 
         } else if (tf->align == ALIGN_CENTER) {
             xoff = (tf->width - ii.width) / 2;
             if (tf->fill_bg) {
-                short xstart = x < 0 ? -x : 0;
-                short xend = x + xoff > g->width ? g->width - x : xoff;
+                short xstart = p.x < 0 ? -p.x : 0;
+                short xend = p.x + xoff > g->width ? g->width - p.x : xoff;
                 for (short by = ystart; by < yend; by++) {
                     for (short bx = xstart; bx < xend; bx++) {
-                        ((uint16_t *)g->pixel_data)[(y + by) * g->width + x + bx] = bg;
+                        ((uint16_t *)g->pixel_data)[(p.y + by) * g->width + p.x + bx] = bg;
                     }
                 }
-                xstart = x + xoff + ii.width < 0 ? -x : xoff + ii.width;
-                xend = x + tf->width > g->width ? g->width - x : tf->width;
+                xstart = p.x + xoff + ii.width < 0 ? -p.x : xoff + ii.width;
+                xend = p.x + tf->width > g->width ? g->width - p.x : tf->width;
                 for (short by = ystart; by < yend; by++) {
                     for (short bx = xstart; bx < xend; bx++) {
-                        ((uint16_t *)g->pixel_data)[(y + by) * g->width + x + bx] = bg;
+                        ((uint16_t *)g->pixel_data)[(p.y + by) * g->width + p.x + bx] = bg;
                     }
                 } 
             }
         }
 
         for (int i = 0; i < ii.len; i++) {
-            xoff += tf_draw_glyph(g, tf, ii.s[i], x + xoff, y + yoff);
+            struct point_t gp = {p.x + xoff, p.y + yoff};
+            xoff += tf_draw_glyph(g, tf, ii.s[i], gp);
         }
 
         ii = tf_iter_lines(tf, NULL);

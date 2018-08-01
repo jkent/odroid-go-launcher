@@ -8,7 +8,8 @@
 #include "../components/hardware/sdcard.h"
 
 #include "app.h"
-#include "gbuf.h"
+#include "graphics.h"
+#include "menu.h"
 #include "tf.h"
 #include "OpenSans_Regular_11X12.h"
 #include "statusbar.h"
@@ -21,7 +22,7 @@
 void app_main(void)
 {
     backlight_init();
-    struct gbuf *fb = display_init();
+    struct gbuf_t *fb = display_init();
     xSemaphoreTake(fb->mutex, portMAX_DELAY);
     memset(fb->pixel_data, 0, fb->width * fb->height * fb->bytes_per_pixel);
     display_update();
@@ -37,41 +38,71 @@ void app_main(void)
 
     char s[64];
 
-    strcpy(s, "Press A to boot hello-world.bin app.");
+    uint16_t keypad = 0;
+
+    strcpy(s, "Press A to show menu. B to hide it.");
     struct tf_metrics m = tf_get_str_metrics(tf, s);
-    short x =  DISPLAY_WIDTH/2 - m.width/2;
-    short y = DISPLAY_HEIGHT/2 - m.height/2;
+    struct point_t p = {DISPLAY_WIDTH/2 - m.width/2, DISPLAY_HEIGHT/2 - m.height/2};
     xSemaphoreTake(fb->mutex, portMAX_DELAY);
-    tf_draw_str(fb, tf, s, x, y);
-    display_update_rect(x, y, m.width, m.height);
+    tf_draw_str(fb, tf, s, p);
+    struct rect_t r = {p.x, p.y, m.width, m.height};
+    display_update_rect(r);
     xSemaphoreGive(fb->mutex);
 
-    uint16_t keypad = 0;
     while (!(keypad & KEYPAD_A)) {
         uint16_t sample = keypad_sample();
         keypad = keypad_debounce(sample, NULL);
         vTaskDelay(10 / portTICK_PERIOD_MS);
     }
 
+    struct menu_t *menu = menu_init(fb, 300, 200);
+    menu_show(menu);
+
+    while (!(keypad & KEYPAD_B)) {
+        uint16_t sample = keypad_sample();
+        keypad = keypad_debounce(sample, NULL);
+        vTaskDelay(10 / portTICK_PERIOD_MS);
+    }
+
+    menu_hide(menu);
+
+    strcpy(s, "Press A to boot hello-world.bin app.");
+    m = tf_get_str_metrics(tf, s);
+    p.x = r.x =  DISPLAY_WIDTH/2 - m.width/2;
+    p.y = r.y = DISPLAY_HEIGHT/2 - m.height/2;
+    r.width = m.width;
+    r.height = m.height;
+    xSemaphoreTake(fb->mutex, portMAX_DELAY);
     memset(fb->pixel_data, 0, fb->width * fb->height * fb->bytes_per_pixel);
+    tf_draw_str(fb, tf, s, p);
+    display_update_rect(r);
+    xSemaphoreGive(fb->mutex);
+
+    while (!(keypad & KEYPAD_A)) {
+        uint16_t sample = keypad_sample();
+        keypad = keypad_debounce(sample, NULL);
+        vTaskDelay(10 / portTICK_PERIOD_MS);
+    }
+
     strcpy(s, "Loading...");
     m = tf_get_str_metrics(tf, s);
-    x = DISPLAY_WIDTH/2 - m.width/2;
-    y = DISPLAY_HEIGHT/2 - m.height/2;
+    p.x = DISPLAY_WIDTH/2 - m.width/2;
+    p.y = DISPLAY_HEIGHT/2 - m.height/2;
     xSemaphoreTake(fb->mutex, portMAX_DELAY);
-    tf_draw_str(fb, tf, s, x, y);
+    memset(fb->pixel_data, 0, fb->width * fb->height * fb->bytes_per_pixel);
+    tf_draw_str(fb, tf, s, p);
     display_update();
     xSemaphoreGive(fb->mutex);
 
     app_run("/sd/apps/hello-world.bin");
 
-    memset(fb->pixel_data, 0, fb->width * fb->height * fb->bytes_per_pixel);
     strcpy(s, "App not found.");
     m = tf_get_str_metrics(tf, s);
-    x = DISPLAY_WIDTH/2 - m.width/2;
-    y = DISPLAY_HEIGHT/2 - m.height/2;
+    p.x = DISPLAY_WIDTH/2 - m.width/2;
+    p.y = DISPLAY_HEIGHT/2 - m.height/2;
     xSemaphoreTake(fb->mutex, portMAX_DELAY);
-    tf_draw_str(fb, tf, s, x, y);
+    memset(fb->pixel_data, 0, fb->width * fb->height * fb->bytes_per_pixel);
+    tf_draw_str(fb, tf, s, p);
     display_update();
     xSemaphoreGive(fb->mutex);
 }

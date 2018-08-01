@@ -6,7 +6,6 @@
 #include "../components/hardware/display.h"
 #include "../components/hardware/sdcard.h"
 
-#include "gbuf.h"
 #include "OpenSans_Regular_11X12.h"
 #include "icons_16X16.h"
 #include "tf.h"
@@ -18,7 +17,7 @@
 
 static bool task_running = false;
 static struct {
-    struct gbuf *fb;
+    struct gbuf_t *fb;
     struct tf *tf;
 } task_data;
 
@@ -31,21 +30,22 @@ static void statusbar_task(void *arg)
 
         task_data.tf->font = &font_icons_16X16;
 
-        short x = task_data.fb->width - 16;
-        tf_draw_glyph(task_data.fb, task_data.tf, FONT_ICON_BATTERY5, x, 0);
-        x -= 16;
+        struct point_t p = {task_data.fb->width - 16, 0};
+        tf_draw_glyph(task_data.fb, task_data.tf, FONT_ICON_BATTERY5, p);
+        p.x -= 16;
         if (sdcard_present()) {
-            tf_draw_glyph(task_data.fb, task_data.tf, FONT_ICON_SDCARD, x, 0);
-            x -= 16;
+            tf_draw_glyph(task_data.fb, task_data.tf, FONT_ICON_SDCARD, p);
+            p.x -= 16;
         }
         if (/*wifi_enabled()*/ 1) {
-            tf_draw_glyph(task_data.fb, task_data.tf, FONT_ICON_WIFI4, x, 0);
-            x -= 16;            
+            tf_draw_glyph(task_data.fb, task_data.tf, FONT_ICON_WIFI4, p);
+            p.x -= 16;            
         }
-        tf_draw_glyph(task_data.fb, task_data.tf, FONT_ICON_SPEAKER3, x, 0);
-        x -= 16;
+        tf_draw_glyph(task_data.fb, task_data.tf, FONT_ICON_SPEAKER3, p);
+        p.x -= 16;
 
-        display_update_rect(0, 0, task_data.fb->width, STATUSBAR_HEIGHT);
+        struct rect_t r = {0, 0, task_data.fb->width, STATUSBAR_HEIGHT};
+        display_update_rect(r);
         xSemaphoreGive(task_data.fb->mutex);
         vTaskDelay(100 / portTICK_PERIOD_MS);
     }
@@ -53,7 +53,7 @@ static void statusbar_task(void *arg)
     tf_free(task_data.tf);
 }
 
-void statusbar_init(struct gbuf *fb)
+void statusbar_init(struct gbuf_t *fb)
 {
     task_running = true;
 
