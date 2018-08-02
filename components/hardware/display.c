@@ -235,6 +235,7 @@ static uint16_t *get_pbuf(void) {
 struct gbuf_t *display_init(void)
 {
     fb = gbuf_new(DISPLAY_WIDTH, DISPLAY_HEIGHT, 2, BIG_ENDIAN);
+    memset(fb->pixel_data, 0, fb->width * fb->height * fb->bytes_per_pixel);
 
     pbuf[0] = heap_caps_malloc(320 * PARALLEL_LINES * sizeof(uint16_t), MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
     if (!pbuf[0]) abort();
