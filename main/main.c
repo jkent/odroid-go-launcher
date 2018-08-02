@@ -40,7 +40,7 @@ void app_main(void)
 
     uint16_t keypad = 0;
 
-    strcpy(s, "Press A to show menu. B to hide it.");
+    strcpy(s, "Press Menu button to show menu. Press B to hide it.");
     struct tf_metrics m = tf_get_str_metrics(tf, s);
     struct point_t p = {DISPLAY_WIDTH/2 - m.width/2, DISPLAY_HEIGHT/2 - m.height/2};
     xSemaphoreTake(fb->mutex, portMAX_DELAY);
@@ -55,7 +55,7 @@ void app_main(void)
         vTaskDelay(10 / portTICK_PERIOD_MS);
     }
 
-    struct menu_t *menu = menu_init(fb, 300, 200);
+    struct menu_t *menu = menu_new(fb, 300, 200);
     menu_show(menu);
 
     while (!(keypad & KEYPAD_B)) {
@@ -68,14 +68,12 @@ void app_main(void)
 
     strcpy(s, "Press A to boot hello-world.bin app.");
     m = tf_get_str_metrics(tf, s);
-    p.x = r.x =  DISPLAY_WIDTH/2 - m.width/2;
-    p.y = r.y = DISPLAY_HEIGHT/2 - m.height/2;
-    r.width = m.width;
-    r.height = m.height;
+    p.x =  DISPLAY_WIDTH/2 - m.width/2;
+    p.y = DISPLAY_HEIGHT/2 - m.height/2;
     xSemaphoreTake(fb->mutex, portMAX_DELAY);
     memset(fb->pixel_data, 0, fb->width * fb->height * fb->bytes_per_pixel);
     tf_draw_str(fb, tf, s, p);
-    display_update_rect(r);
+    display_update();
     xSemaphoreGive(fb->mutex);
 
     while (!(keypad & KEYPAD_A)) {
