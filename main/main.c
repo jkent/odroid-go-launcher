@@ -49,7 +49,7 @@ void app_main(void)
     display_update_rect(r);
     xSemaphoreGive(fb->mutex);
 
-    while (!(keypad & KEYPAD_A)) {
+    while (!(keypad & KEYPAD_MENU)) {
         uint16_t sample = keypad_sample();
         keypad = keypad_debounce(sample, NULL);
         vTaskDelay(10 / portTICK_PERIOD_MS);
@@ -71,7 +71,7 @@ void app_main(void)
     p.x =  DISPLAY_WIDTH/2 - m.width/2;
     p.y = DISPLAY_HEIGHT/2 - m.height/2;
     xSemaphoreTake(fb->mutex, portMAX_DELAY);
-    memset(fb->pixel_data, 0, fb->width * fb->height * fb->bytes_per_pixel);
+    memset(fb->pixel_data + fb->width * 16 * fb->bytes_per_pixel , 0, fb->width * (fb->height - 32) * fb->bytes_per_pixel);
     tf_draw_str(fb, tf, s, p);
     display_update();
     xSemaphoreGive(fb->mutex);
@@ -87,7 +87,7 @@ void app_main(void)
     p.x = DISPLAY_WIDTH/2 - m.width/2;
     p.y = DISPLAY_HEIGHT/2 - m.height/2;
     xSemaphoreTake(fb->mutex, portMAX_DELAY);
-    memset(fb->pixel_data, 0, fb->width * fb->height * fb->bytes_per_pixel);
+    memset(fb->pixel_data + fb->width * 16 * fb->bytes_per_pixel , 0, fb->width * (fb->height - 32) * fb->bytes_per_pixel);
     tf_draw_str(fb, tf, s, p);
     display_update();
     xSemaphoreGive(fb->mutex);
@@ -99,7 +99,7 @@ void app_main(void)
     p.x = DISPLAY_WIDTH/2 - m.width/2;
     p.y = DISPLAY_HEIGHT/2 - m.height/2;
     xSemaphoreTake(fb->mutex, portMAX_DELAY);
-    memset(fb->pixel_data, 0, fb->width * fb->height * fb->bytes_per_pixel);
+    memset(fb->pixel_data + fb->width * 16 * fb->bytes_per_pixel , 0, fb->width * (fb->height - 32) * fb->bytes_per_pixel);
     tf_draw_str(fb, tf, s, p);
     display_update();
     xSemaphoreGive(fb->mutex);

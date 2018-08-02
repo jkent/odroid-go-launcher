@@ -1,7 +1,10 @@
 #include "menu.h"
 
 #include "../components/hardware/display.h"
+#include "OpenSans_Regular_11X12.h"
+
 #include "graphics.h"
+#include "tf.h"
 
 #include <string.h>
 
@@ -22,13 +25,17 @@ struct menu_t *menu_new(struct gbuf_t *g, short width, short height)
 
     menu->g = g;
     menu->g_saved = gbuf_new(width, height, 2, BIG_ENDIAN);
-    menu->rect.x = g->width / 2 - width / 2;
-    menu->rect.y = g->height / 2 - height / 2;
+    menu->rect.x = g->width/2 - width/2;
+    menu->rect.y = g->height/2 - height/2;
     menu->rect.width = width;
     menu->rect.height = height;
 
     menu->item_count = 0;
     menu->items = NULL;
+
+    struct menu_item_t item;
+    item.label = strdup("Hello world!");
+    menu_append(menu, &item);
 
     return menu;
 }
@@ -44,16 +51,34 @@ void menu_free(struct menu_t *menu)
     gbuf_free(menu->g_saved);
 }
 
+static void menu_draw(struct menu_t *menu)
+{
+    struct tf *tf = tf_new();
+    tf->font = &font_OpenSans_Regular_11X12;
+
+    xSemaphoreTake(menu->g->mutex, portMAX_DELAY);
+    draw_rectangle(menu->g, menu->rect, DRAW_TYPE_FILL, 0x0000);
+    draw_rectangle(menu->g, menu->rect, DRAW_TYPE_OUTLINE, 0xFFFF);
+
+    for (unsigned int i = 0; i < menu->item_count; i++) {
+        struct point_t p = {menu->rect.x + 2, menu->rect.y + 3 + (2 + tf->font->height) * i};
+        tf_draw_str(menu->g, tf, menu->items[i].label, p);
+    }
+
+    display_update_rect(menu->rect);
+    xSemaphoreGive(menu->g->mutex);
+
+    tf_free(tf);
+}
+
 void menu_show(struct menu_t *menu)
 {
     struct rect_t dst_rect = {0, 0, menu->rect.width, menu->rect.height};
 
     xSemaphoreTake(menu->g->mutex, portMAX_DELAY);
     blit(menu->g_saved, dst_rect, menu->g, menu->rect);
-    draw_rectangle(menu->g, menu->rect, DRAW_TYPE_FILL, 0xF800);
-    draw_rectangle(menu->g, menu->rect, DRAW_TYPE_OUTLINE, 0xFFFF);
-    display_update_rect(menu->rect);
     xSemaphoreGive(menu->g->mutex);
+    menu_draw(menu);
 }
 
 void menu_hide(struct menu_t *menu)
@@ -75,7 +100,7 @@ void menu_insert(struct menu_t *menu, int index, struct menu_item_t *item)
     assert(index <= menu->item_count);
 
     if (menu->item_count == 0) {
-        menu->items = malloc(sizeof(struct menu_item_t) * menu->item_count);
+        menu->items = malloc(sizeof(struct menu_item_t));
         assert(menu->items != NULL);
     } else {
         menu->items = realloc(menu->items, sizeof(struct menu_item_t) * menu->item_count);
