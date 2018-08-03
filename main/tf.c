@@ -61,7 +61,7 @@ static struct tf_iterinfo_t tf_iter_lines(struct tf_t *tf, const char *start)
 
         short char_width = tf->font->widths ? tf->font->widths[*p - tf->font->first] : tf->font->width;
 
-        if (tf->flags & (TF_WORDWRAP | TF_ELIDE) && tf->width > 0 && width + char_width > tf->width) {
+        if ((tf->flags & TF_WORDWRAP || tf->flags & TF_ELIDE) && tf->width > 0 && width + char_width > tf->width) {
             const char *q = p;
             short sub = 0;
             while (p--) {
@@ -70,10 +70,11 @@ static struct tf_iterinfo_t tf_iter_lines(struct tf_t *tf, const char *start)
                 }
                 sub += tf->font->widths ? tf->font->widths[*p - tf->font->first] : tf->font->width;
                 if (tf->flags & TF_ELIDE) {
-                    if (width - sub + ellipsis_width <= tf->rect.width) {
+                    if (width - sub + ellipsis_width <= tf->width) {
+                        width = width - sub + ellipsis_width;
                         ii.s = s;
                         ii.len = p - s;
-                        ii.width = width - sub + ellipsis_width;
+                        ii.width = width;
                         ii.ellipsis = true;
                         s = "";
                         return ii;
@@ -156,9 +157,10 @@ short tf_draw_glyph(struct gbuf_t *g, struct tf_t *tf, char c, struct point_t p)
     const unsigned char *glyph = tf->font->p + ((tf->font->width + 7) / 8) * tf->font->height * (c - tf->font->first);
 
     for (short yoff = ystart; yoff < yend; yoff++) {
+        uint16_t *pixel = ((uint16_t *)g->pixel_data) + (p.y + yoff) * g->width + p.x;
         for (short xoff = xstart; xoff < xend; xoff++) {
             if (glyph[yoff * ((tf->font->width + 7) / 8) + (xoff / 8)] & (1 << (xoff % 8))) {
-                ((uint16_t *)g->pixel_data)[(p.y + yoff) * g->width + p.x + xoff] = color;
+                *(pixel + xoff) = color;
             }
         }
     }

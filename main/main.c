@@ -31,13 +31,13 @@ void app_main(void)
 
     struct tf_t *tf = tf_new(&font_OpenSans_Regular_11X12, 240, TF_ALIGN_CENTER | TF_WORDWRAP);
 
-    char s[64];
+    const char *s;
     uint16_t keypad = 0;
     struct tf_metrics_t m;
     struct point_t p;
 
     while (true) {
-        strcpy(s, "Press Menu button for menu or A to boot hello-world.bin app.");
+        s = "Press Menu button for menu or A to boot hello-world.bin app.";
         m = tf_get_str_metrics(tf, s);
         p.x = DISPLAY_WIDTH/2 - tf->width/2;
         p.y = DISPLAY_HEIGHT/2 - m.height/2;
@@ -58,19 +58,14 @@ void app_main(void)
         }
 
         struct menu_t *menu = menu_new(fb, 240, 180);
-        menu_show(menu);
-
-        do {
-            uint16_t sample = keypad_sample();
-            keypad = keypad_debounce(sample, NULL);
-            vTaskDelay(10 / portTICK_PERIOD_MS);
-        } while (!(keypad & KEYPAD_B));
-
-        menu_hide(menu);
+        menu_append(menu, "The quick brown fox jumps over the lazy dog.", NULL, NULL);
+        menu_append(menu, "Hello World!", NULL, NULL);
+        menu_append(menu, "3nd line", NULL, NULL);
+        menu_showmodal(menu);
         menu_free(menu);
     }
 
-    strcpy(s, "Loading...");
+    s = "Loading...";
     m = tf_get_str_metrics(tf, s);
     p.x = DISPLAY_WIDTH/2 - tf->width/2;
     p.y = DISPLAY_HEIGHT/2 - m.height/2;
@@ -82,7 +77,7 @@ void app_main(void)
 
     app_run("/sd/apps/hello-world.bin");
 
-    strcpy(s, "App not found.");
+    s = "App not found.";
     m = tf_get_str_metrics(tf, s);
     p.x = DISPLAY_WIDTH/2 - tf->width/2;
     p.y = DISPLAY_HEIGHT/2 - m.height/2;
