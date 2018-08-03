@@ -29,24 +29,20 @@ void app_main(void)
     statusbar_init(fb);
     keypad_init();
 
-    struct tf *tf = tf_new();
-    tf->font = &font_OpenSans_Regular_11X12;
-    tf->width = 240;
-    tf->align = ALIGN_CENTER; 
+    struct tf_t *tf = tf_new(&font_OpenSans_Regular_11X12, 240, TF_ALIGN_CENTER | TF_WORDWRAP);
 
     char s[64];
-
     uint16_t keypad = 0;
-    struct tf_metrics m;
+    struct tf_metrics_t m;
     struct point_t p;
 
     while (true) {
-        strcpy(s, "Press Menu for menu or A to boot hello-world.bin app.");
+        strcpy(s, "Press Menu button for menu or A to boot hello-world.bin app.");
         m = tf_get_str_metrics(tf, s);
         p.x = DISPLAY_WIDTH/2 - tf->width/2;
         p.y = DISPLAY_HEIGHT/2 - m.height/2;
         xSemaphoreTake(fb->mutex, portMAX_DELAY);
-        memset(fb->pixel_data + fb->width * 16 * fb->bytes_per_pixel , 0, fb->width * (fb->height - 32) * fb->bytes_per_pixel);
+        memset(fb->pixel_data + fb->width * 16 * fb->bytes_per_pixel, 0, fb->width * (fb->height - 32) * fb->bytes_per_pixel);
         tf_draw_str(fb, tf, s, p);
         display_update();
         xSemaphoreGive(fb->mutex);

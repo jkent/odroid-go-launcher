@@ -36,7 +36,7 @@ num_bytes = len(bitmaps[0]['bytes'])
 
 output = """#include "tf.h"
 
-const struct tf_font font_icons_%dX%d;
+const struct tf_font_t font_icons_%dX%d;
 
 """ % (width, height)
 
@@ -64,7 +64,7 @@ for bitmap in bitmaps:
   i += 1
 output += """};
 
-const struct tf_font font_icons_%dX%d = {(const unsigned char *)fontBits_icons_%dX%d, %d, %d, 32, %d, NULL};
+const struct tf_font_t font_icons_%dX%d = {(const unsigned char *)fontBits_icons_%dX%d, %d, %d, 32, %d, NULL};
 """ % (width, height, width, height, width, height, i - 1)
 
 f = open('icons_%dX%d.c' % (width, height), 'w')

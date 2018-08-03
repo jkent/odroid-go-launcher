@@ -13,6 +13,7 @@ struct menu_t {
     struct gbuf_t *g;
     struct gbuf_t *g_saved;
     struct rect_t rect;
+    struct tf_t *tf_text;
     size_t item_count;
     struct menu_item_t *items;
 };
@@ -29,6 +30,8 @@ struct menu_t *menu_new(struct gbuf_t *g, short width, short height)
     menu->rect.y = g->height/2 - height/2;
     menu->rect.width = width;
     menu->rect.height = height;
+
+    menu->tf_text = tf_new(&font_OpenSans_Regular_11X12, width, TF_ELIDE);
 
     menu->item_count = 0;
     menu->items = NULL;
@@ -48,27 +51,24 @@ void menu_free(struct menu_t *menu)
         menu_remove(menu, -1);
     }
 
+    tf_free(menu->tf_text);
+
     gbuf_free(menu->g_saved);
 }
 
 static void menu_draw(struct menu_t *menu)
 {
-    struct tf *tf = tf_new();
-    tf->font = &font_OpenSans_Regular_11X12;
-
     xSemaphoreTake(menu->g->mutex, portMAX_DELAY);
     draw_rectangle(menu->g, menu->rect, DRAW_TYPE_FILL, 0x0000);
     draw_rectangle(menu->g, menu->rect, DRAW_TYPE_OUTLINE, 0xFFFF);
 
     for (unsigned int i = 0; i < menu->item_count; i++) {
-        struct point_t p = {menu->rect.x + 2, menu->rect.y + 3 + (2 + tf->font->height) * i};
-        tf_draw_str(menu->g, tf, menu->items[i].label, p);
+        struct point_t p = {menu->rect.x + 2, menu->rect.y + 3 + (2 + menu->tf_text->font->height) * i};
+        tf_draw_str(menu->g, menu->tf_text, menu->items[i].label, p);
     }
 
     display_update_rect(menu->rect);
     xSemaphoreGive(menu->g->mutex);
-
-    tf_free(tf);
 }
 
 void menu_show(struct menu_t *menu)

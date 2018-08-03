@@ -105,4 +105,4 @@ static const unsigned char fontBits_OpenSans_Regular_11X12[95][24] = {
 };
 static const short fontWidths_OpenSans_Regular_11X12[] = {
 3,3,5,8,7,10,9,3,4,4,7,7,3,4,3,4,7,7,7,7,7,7,7,7,7,7,3,3,7,7,7,5,11,8,8,8,9,7,6,9,9,3,3,7,6,11,9,9,7,9,7,7,7,9,7,11,7,7,7,4,4,4,7,5,7,7,7,6,7,7,4,7,7,3,3,6,3,11,7,7,7,7,5,6,4,7,6,9,6,6,6,5,7,5,7};
-const struct tf_font font_OpenSans_Regular_11X12 = { (const unsigned char *)fontBits_OpenSans_Regular_11X12, 11, 12, 32, 126, fontWidths_OpenSans_Regular_11X12 };
+const struct tf_font_t font_OpenSans_Regular_11X12 = { (const unsigned char *)fontBits_OpenSans_Regular_11X12, 11, 12, 32, 126, fontWidths_OpenSans_Regular_11X12 };
