@@ -19,6 +19,11 @@
 #include <stdio.h>
 #include <string.h>
 
+void dismiss_fn(struct menu_t *menu, int offset, void *arg)
+{
+    menu_dismiss(menu);
+}
+
 void app_main(void)
 {
     struct gbuf_t *fb = display_init();
@@ -32,7 +37,6 @@ void app_main(void)
     struct tf_t *tf = tf_new(&font_OpenSans_Regular_11X12, 240, TF_ALIGN_CENTER | TF_WORDWRAP);
 
     const char *s;
-    uint16_t keypad = 0;
     struct tf_metrics_t m;
     struct point_t p;
 
@@ -46,13 +50,14 @@ void app_main(void)
         display_update();
         xSemaphoreGive(fb->mutex);
 
+        uint16_t keys = 0, changes = 0, pressed = 0;
         do {
-            uint16_t sample = keypad_sample();
-            keypad = keypad_debounce(sample, NULL);
             vTaskDelay(10 / portTICK_PERIOD_MS);
-        } while (!(keypad & KEYPAD_MENU) && !(keypad & KEYPAD_A));
+            keys = keypad_debounce(keypad_sample(), &changes);
+            pressed = keys & changes;
+        } while (!(pressed & KEYPAD_MENU) && !(pressed & KEYPAD_A));
 
-        if (keypad & KEYPAD_A) {
+        if (pressed & KEYPAD_A) {
             break;
         }
 
@@ -62,6 +67,7 @@ void app_main(void)
         menu_append(menu, "3nd line", NULL, NULL);
         menu_append(menu, "4th line", NULL, NULL);
         menu_append(menu, "5th line", NULL, NULL);
+        menu_append(menu, "Dismiss", dismiss_fn, NULL);
         menu_showmodal(menu);
         menu_free(menu);
     }

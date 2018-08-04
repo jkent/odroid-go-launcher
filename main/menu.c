@@ -27,6 +27,7 @@ struct menu_t {
     int item_displayed;
     short item_height;
     short yshift;
+    bool dismissed;
 };
 
 struct menu_item_t {
@@ -120,6 +121,8 @@ void menu_showmodal(struct menu_t *menu)
 {
     struct rect_t dst_rect = {0, 0, menu->rect.width, menu->rect.height};
 
+    menu->dismissed = false;
+
     xSemaphoreTake(menu->g->mutex, portMAX_DELAY);
     blit(menu->g_saved, dst_rect, menu->g, menu->rect);
     xSemaphoreGive(menu->g->mutex);
@@ -132,8 +135,8 @@ void menu_showmodal(struct menu_t *menu)
         pressed = keys & changes;
 
         if (pressed & KEYPAD_A) {
-            if (menu->items[menu->item_selected].on_select) {
-                menu->items[menu->item_selected].on_select(menu->items[menu->item_selected].arg);
+            if (menu->items[menu->item_selected].on_select != NULL) {
+                menu->items[menu->item_selected].on_select(menu, menu->item_selected, menu->items[menu->item_selected].arg);
             }
         } else if (pressed & KEYPAD_UP) {
             if (menu->item_selected > 0) {
@@ -164,7 +167,7 @@ void menu_showmodal(struct menu_t *menu)
                 menu_draw(menu);
             }
         }
-    } while (!(pressed & KEYPAD_B));
+    } while (!(pressed & KEYPAD_B) && !menu->dismissed);
 
     menu_hide(menu);
 }
@@ -183,15 +186,14 @@ void menu_insert(struct menu_t *menu, int index, const char *label, menu_callbac
         menu->items = realloc(menu->items, sizeof(struct menu_item_t) * (menu->item_count + 1));
         assert(menu->items != NULL);
         if (index < menu->item_count) {
-
             memmove(&menu->items[index + 1], &menu->items[index], sizeof(struct menu_item_t) * (menu->item_count - index));
         }
     }
 
     struct menu_item_t *item = &menu->items[index];
     item->label = strdup(label);
-    item->on_select = NULL;
-    item->arg = NULL;
+    item->on_select = on_select;
+    item->arg = arg;
     menu->item_count += 1;
 }
 
@@ -220,4 +222,22 @@ void menu_remove(struct menu_t *menu, int index)
     }
 
     menu->item_count -= 1;
+}
+
+void menu_dismiss(struct menu_t *menu)
+{
+    menu->dismissed = true;
+}
+
+const char *menu_get_label(struct menu_t *menu, int offset)
+{
+    assert(offset < menu->item_count);
+    return menu->items[offset].label;
+}
+
+void menu_change_label(struct menu_t *menu, int offset, const char *label)
+{
+    assert(offset < menu->item_count);
+    free(menu->items[offset].label);
+    menu->items[offset].label = strdup(label);
 }
