@@ -197,34 +197,36 @@ void menu_showmodal(struct menu_t *menu)
             }
         } else if (pressed & KEYPAD_UP) {
             if (menu->item_selected > 0) {
-                menu->item_selected -= 1;
-                item = &menu->items[menu->item_selected];
-                if (menu->item_selected > 0 && (item->type == MENU_ITEM_TYPE_DIVIDER || item->type == MENU_ITEM_TYPE_TITLE)) {
-                    menu->item_selected -= 1;
-                }
+                int jump = 0;
+                do {
+                    jump += 1;
+                    item = &menu->items[menu->item_selected - jump];
+                } while (menu->item_selected - jump > 0 && (item->type == MENU_ITEM_TYPE_DIVIDER || item->type == MENU_ITEM_TYPE_TITLE));
+                menu->item_selected -= jump;
                 if (menu->item_first >= menu->item_selected) {
                     menu->yshift = 0;
                 }
-               if (menu->item_first > menu->item_selected) {
-                    menu->item_first -= 1;
+                if (menu->item_first > menu->item_selected) {
+                    menu->item_first -= jump;
                 }
                 menu_draw(menu);
             }
         } else if (pressed & KEYPAD_DOWN) {
             if (menu->item_selected < menu->item_count - 1) {
-                menu->item_selected += 1;
-                item = &menu->items[menu->item_selected];
-                if (menu->item_selected < menu->item_count - 1 && (item->type == MENU_ITEM_TYPE_DIVIDER || item->type == MENU_ITEM_TYPE_TITLE)) {
-                    menu->item_selected += 1;
-                }
+                int jump = 0;
+                do {
+                    jump += 1;
+                    item = &menu->items[menu->item_selected + jump];
+                } while (menu->item_selected < menu->item_count - 1 + jump && (item->type == MENU_ITEM_TYPE_DIVIDER || item->type == MENU_ITEM_TYPE_TITLE));
+                menu->item_selected += jump;
                 if (menu->item_selected - menu->item_first >= menu->item_displayed - 1) {
-                    menu->yshift = menu->item_height - (menu->rect.height - menu->border_width) % menu->item_height;
+                    menu->yshift = menu->item_height - (menu->rect.height - 2 * menu->border_width) % menu->item_height;
                     if (menu->yshift >= menu->item_height) {
                         menu->yshift = 0;
                     }
                 }
                 if (menu->item_selected - menu->item_first >= menu->item_displayed) {
-                    menu->item_first += 1;
+                    menu->item_first += jump;
                 }
 
                 menu_draw(menu);

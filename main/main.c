@@ -77,12 +77,12 @@ void app_main(void)
             break;
         }
 
-        struct menu_t *menu = menu_new(fb, 240, 180);
+        struct menu_t *menu = menu_new(fb, 240, 80);
 
         menu_append_title(menu, "This is a title!");
         const char *wifi_state_list[] = {
-            "Wifi Disabled",
-            "Wifi Enabled",
+            "Enable WiFi",
+            "Disable WiFi",
             NULL,
         };
         menu_append_list(menu, wifi_state_list, 0, menu_list_cycle, NULL);
