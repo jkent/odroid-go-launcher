@@ -42,7 +42,6 @@ void app_main(void)
         p.x = DISPLAY_WIDTH/2 - tf->width/2;
         p.y = DISPLAY_HEIGHT/2 - m.height/2;
         xSemaphoreTake(fb->mutex, portMAX_DELAY);
-        memset(fb->pixel_data + fb->width * 16 * fb->bytes_per_pixel, 0, fb->width * (fb->height - 32) * fb->bytes_per_pixel);
         tf_draw_str(fb, tf, s, p);
         display_update();
         xSemaphoreGive(fb->mutex);
@@ -61,6 +60,8 @@ void app_main(void)
         menu_append(menu, "The quick brown fox jumps over the lazy dog.", NULL, NULL);
         menu_append(menu, "Hello World!", NULL, NULL);
         menu_append(menu, "3nd line", NULL, NULL);
+        menu_append(menu, "4th line", NULL, NULL);
+        menu_append(menu, "5th line", NULL, NULL);
         menu_showmodal(menu);
         menu_free(menu);
     }
