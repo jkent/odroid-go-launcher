@@ -1,8 +1,9 @@
-#include "keypad.h"
+#include <stdint.h>
 
 #include "driver/adc.h"
 
-#include <stdint.h>
+#include "keypad.h"
+
 
 #define KEYPAD_IO_X ADC1_CHANNEL_6
 #define KEYPAD_IO_Y ADC1_CHANNEL_7

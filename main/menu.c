@@ -1,4 +1,5 @@
-#include "menu.h"
+#include <stdbool.h>
+#include <string.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -10,7 +11,8 @@
 #include "OpenSans_Regular_11X12.h"
 #include "tf.h"
 
-#include <string.h>
+#include "menu.h"
+
 
 struct menu_item_t;
 

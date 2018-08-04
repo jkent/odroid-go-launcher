@@ -1,8 +1,9 @@
-#include "graphics.h"
-
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "graphics.h"
+
 
 struct gbuf_t *gbuf_new(uint16_t width, uint16_t height, uint16_t bytes_per_pixel, uint16_t endian)
 {

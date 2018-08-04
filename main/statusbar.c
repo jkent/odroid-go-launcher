@@ -1,4 +1,4 @@
-#include "statusbar.h"
+#include <string.h>
 
 #include "display.h"
 #include "sdcard.h"
@@ -7,7 +7,7 @@
 #include "icons_16X16.h"
 #include "tf.h"
 
-#include <string.h>
+#include "statusbar.h"
 
 
 #define STATUSBAR_HEIGHT (16)

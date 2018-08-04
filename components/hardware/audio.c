@@ -1,8 +1,9 @@
-#include "audio.h"
-
 #include "freertos/FreeRTOS.h"
 #include "driver/i2s.h"
 #include "driver/rtc_io.h"
+
+#include "audio.h"
+
 
 #define AUDIO_IO_NEGATIVE GPIO_NUM_25
 #define AUDIO_IO_POSITIVE GPIO_NUM_26

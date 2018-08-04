@@ -1,4 +1,4 @@
-#include "display.h"
+#include <string.h>
 
 #include "freertos/FreeRTOS.h"
 #include "esp_heap_caps.h"
@@ -8,7 +8,7 @@
 #include "driver/spi_master.h"
 #include "driver/ledc.h"
 
-#include <string.h>
+#include "display.h"
 
 
 static const gpio_num_t SPI_PIN_NUM_MISO = GPIO_NUM_19;

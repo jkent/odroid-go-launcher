@@ -1,8 +1,10 @@
-#include "backlight.h"
+#include <string.h>
+
 #include "driver/gpio.h"
 #include "driver/ledc.h"
 
-#include <string.h>
+#include "backlight.h"
+
 
 static const int DUTY_MAX = 0x1fff;
 
