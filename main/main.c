@@ -78,18 +78,20 @@ void app_main(void)
         }
 
         struct menu_t *menu = menu_new(fb, 240, 180);
+
+        menu_append_title(menu, "This is a title!");
         const char *wifi_state_list[] = {
             "Wifi Disabled",
             "Wifi Enabled",
             NULL,
         };
         menu_append_list(menu, wifi_state_list, 0, menu_list_cycle, NULL);
-
         menu_append_text(menu, "The quick brown fox jumps over the lazy dog.", NULL, NULL);
         menu_append_text(menu, "Hello World!", NULL, NULL);
         menu_append_text(menu, "3nd line", NULL, NULL);
         menu_append_text(menu, "4th line", NULL, NULL);
         menu_append_text(menu, "5th line", NULL, NULL);
+        menu_append_divider(menu);
         menu_append_text(menu, "Dismiss", dismiss_fn, NULL);
         menu_showmodal(menu);
         menu_free(menu);
