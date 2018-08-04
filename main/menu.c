@@ -30,8 +30,19 @@ struct menu_t {
     bool dismissed;
 };
 
+enum menu_item_type_t {
+    MENU_ITEM_TYPE_TEXT,
+    MENU_ITEM_TYPE_LIST,
+};
+
 struct menu_item_t {
-    char *label;
+    enum menu_item_type_t type;
+    union {
+        const char *label;
+        const char **list;
+    };
+    int value;
+    size_t list_size;
     menu_callback_t on_select;
     void *arg;
 };
@@ -77,9 +88,8 @@ void menu_free(struct menu_t *menu)
     free(menu);
 }
 
-static void menu_draw(struct menu_t *menu)
+void menu_draw(struct menu_t *menu)
 {
-    xSemaphoreTake(menu->g->mutex, portMAX_DELAY);
     draw_rectangle(menu->g, menu->rect, DRAW_TYPE_FILL, 0x0000);
     draw_rectangle(menu->g, menu->rect, DRAW_TYPE_OUTLINE, 0xFFFF);
 
@@ -87,6 +97,9 @@ static void menu_draw(struct menu_t *menu)
         if (row >= menu->item_count) {
             break;
         }
+
+        struct menu_item_t *item = &menu->items[menu->item_first + row];
+
         struct rect_t r = {
             .x = menu->rect.x + menu->border_width,
             .y = menu->rect.y + menu->border_width - menu->yshift + row * menu->item_height,
@@ -100,21 +113,26 @@ static void menu_draw(struct menu_t *menu)
         if (menu->item_first + row == menu->item_selected) {
             draw_rectangle(menu->g, r, DRAW_TYPE_FILL, 0x001F);
         }
-        tf_draw_str(menu->g, menu->tf_text, menu->items[menu->item_first + row].label, p);
+
+        const char *s;
+        if (item->type == MENU_ITEM_TYPE_LIST) {
+            s = item->list[item->value];
+        } else {
+            s = item->label;
+        }
+
+        tf_draw_str(menu->g, menu->tf_text, s, p);
     }
 
     display_update_rect(menu->rect);
-    xSemaphoreGive(menu->g->mutex);
 }
 
 static void menu_hide(struct menu_t *menu)
 {
     struct rect_t src_rect = {0, 0, menu->rect.width, menu->rect.height};
 
-    xSemaphoreTake(menu->g->mutex, portMAX_DELAY);
     blit(menu->g, menu->rect, menu->g_saved, src_rect);
     display_update_rect(menu->rect);
-    xSemaphoreGive(menu->g->mutex);
 }
 
 void menu_showmodal(struct menu_t *menu)
@@ -123,9 +141,7 @@ void menu_showmodal(struct menu_t *menu)
 
     menu->dismissed = false;
 
-    xSemaphoreTake(menu->g->mutex, portMAX_DELAY);
     blit(menu->g_saved, dst_rect, menu->g, menu->rect);
-    xSemaphoreGive(menu->g->mutex);
     menu_draw(menu);
 
     uint16_t keys = 0, changes = 0, pressed = 0;
@@ -172,7 +188,7 @@ void menu_showmodal(struct menu_t *menu)
     menu_hide(menu);
 }
 
-void menu_insert(struct menu_t *menu, int index, const char *label, menu_callback_t on_select, void *arg)
+static struct menu_item_t *menu_insert_new(struct menu_t *menu, int index)
 {
     if (index < 0) {
         index = menu->item_count + index;
@@ -190,16 +206,43 @@ void menu_insert(struct menu_t *menu, int index, const char *label, menu_callbac
         }
     }
 
-    struct menu_item_t *item = &menu->items[index];
-    item->label = strdup(label);
-    item->on_select = on_select;
-    item->arg = arg;
     menu->item_count += 1;
+
+    return &menu->items[index];
 }
 
-void menu_append(struct menu_t *menu, const char *label, menu_callback_t on_select, void *arg)
+void menu_insert_text(struct menu_t *menu, int index, const char *label, menu_callback_t on_select, void *arg)
 {
-    menu_insert(menu, menu->item_count, label, on_select, arg);
+    struct menu_item_t *item = menu_insert_new(menu, index);
+    item->type = MENU_ITEM_TYPE_TEXT;
+    item->label = label;
+    item->on_select = on_select;
+    item->arg = arg;
+}
+
+void menu_append_text(struct menu_t *menu, const char *label, menu_callback_t on_select, void *arg)
+{
+    menu_insert_text(menu, menu->item_count, label, on_select, arg);
+}
+
+void menu_insert_list(struct menu_t *menu, int index, const char **list, int value, menu_callback_t on_select, void *arg)
+{
+    struct menu_item_t *item = menu_insert_new(menu, index);
+    item->type = MENU_ITEM_TYPE_LIST;
+    item->list = list;
+    item->list_size = 0;
+    while (list[item->list_size]) {
+        item->list_size += 1;
+    }
+    printf("list_size = %d\n", item->list_size);
+    item->value = value;
+    item->on_select = on_select;
+    item->arg = arg;
+}
+
+void menu_append_list(struct menu_t *menu, const char **list, int value, menu_callback_t on_select, void *arg)
+{
+    menu_insert_list(menu, menu->item_count, list, value, on_select, arg);
 }
 
 void menu_remove(struct menu_t *menu, int index)
@@ -209,8 +252,7 @@ void menu_remove(struct menu_t *menu, int index)
     }
     assert(index < menu->item_count);
 
-    free(menu->items[index].label);
-    if (menu->item_count == 0) {
+    if (menu->item_count == 1) {
         free(menu->items);
         menu->items = NULL;
     } else {
@@ -229,15 +271,52 @@ void menu_dismiss(struct menu_t *menu)
     menu->dismissed = true;
 }
 
-const char *menu_get_label(struct menu_t *menu, int offset)
+int menu_get_value(struct menu_t *menu, int index)
 {
-    assert(offset < menu->item_count);
-    return menu->items[offset].label;
+    if (index < 0) {
+        index = menu->item_count + index;
+    }
+    assert(index < menu->item_count);
+
+    struct menu_item_t *item = &menu->items[index];
+    return item->value;
 }
 
-void menu_change_label(struct menu_t *menu, int offset, const char *label)
+void menu_set_value(struct menu_t *menu, int index, int value)
 {
-    assert(offset < menu->item_count);
-    free(menu->items[offset].label);
-    menu->items[offset].label = strdup(label);
+    if (index < 0) {
+        index = menu->item_count + index;
+    }
+    assert(index < menu->item_count);
+
+    struct menu_item_t *item = &menu->items[index];
+    if (item->type == MENU_ITEM_TYPE_LIST) {
+        assert(value >= 0 && value < item->list_size);
+    }
+    int old_value = item->value;
+    item->value = value;
+    if (old_value != value) {
+        menu_draw(menu);
+    }
+}
+
+int menu_get_list_size(struct menu_t *menu, int index)
+{
+    if (index < 0) {
+        index = menu->item_count + index;
+    }
+    assert(index < menu->item_count);
+
+    struct menu_item_t *item = &menu->items[index];
+    return item->list_size;
+}
+
+void menu_list_cycle(struct menu_t *menu, int index, void *arg)
+{
+    struct menu_item_t *item = &menu->items[index];
+    item->value++;
+    if (item->value >= item->list_size) {
+        item->value = 0;
+    }
+    menu_draw(menu);
 }

@@ -1,8 +1,5 @@
 #include "statusbar.h"
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-
 #include "../components/hardware/display.h"
 #include "../components/hardware/sdcard.h"
 
@@ -15,53 +12,38 @@
 
 #define STATUSBAR_HEIGHT (16)
 
-static bool task_running = false;
-static struct {
-    struct gbuf_t *fb;
-    struct tf_t *tf_icons;
-} task_data;
-
-static void statusbar_task(void *arg)
-{
-    while (task_running) {
-        xSemaphoreTake(task_data.fb->mutex, portMAX_DELAY);
-        memset(task_data.fb->pixel_data, 0, task_data.fb->width *
-                STATUSBAR_HEIGHT * task_data.fb->bytes_per_pixel);
-
-        struct point_t p = {task_data.fb->width - 16, 0};
-        tf_draw_glyph(task_data.fb, task_data.tf_icons, FONT_ICON_BATTERY5, p);
-        p.x -= 16;
-        if (sdcard_present()) {
-            tf_draw_glyph(task_data.fb, task_data.tf_icons, FONT_ICON_SDCARD, p);
-            p.x -= 16;
-        }
-        if (/*wifi_enabled()*/ 1) {
-            tf_draw_glyph(task_data.fb, task_data.tf_icons, FONT_ICON_WIFI4, p);
-            p.x -= 16;            
-        }
-        tf_draw_glyph(task_data.fb, task_data.tf_icons, FONT_ICON_SPEAKER3, p);
-        p.x -= 16;
-
-        struct rect_t r = {0, 0, task_data.fb->width, STATUSBAR_HEIGHT};
-        display_update_rect(r);
-        xSemaphoreGive(task_data.fb->mutex);
-        vTaskDelay(100 / portTICK_PERIOD_MS);
-    }
-
-    tf_free(task_data.tf_icons);
-}
+struct gbuf_t *s_fb;
+struct tf_t *s_icons;
+struct rect_t s_rect;
 
 void statusbar_init(struct gbuf_t *fb)
 {
-    task_running = true;
-
-    task_data.fb = fb;
-    task_data.tf_icons = tf_new(&font_icons_16X16, 0, 0);
-  
-    xTaskCreate(statusbar_task, "statusbar", 1536, NULL, 5, NULL);
+    s_fb = fb;
+    s_icons = tf_new(&font_icons_16X16, 0, 0);
+    s_rect.x = 0;
+    s_rect.y = 0;
+    s_rect.width = s_fb->width;
+    s_rect.height = STATUSBAR_HEIGHT;
 }
 
-void statusbar_deinit(void)
+void statusbar_update(void)
 {
-    task_running = false;
+    memset(s_fb->pixel_data, 0, s_fb->width *
+            STATUSBAR_HEIGHT * s_fb->bytes_per_pixel);
+
+    struct point_t p = {s_fb->width - 16, 0};
+    tf_draw_glyph(s_fb, s_icons, FONT_ICON_BATTERY5, p);
+    p.x -= 16;
+    if (sdcard_present()) {
+        tf_draw_glyph(s_fb, s_icons, FONT_ICON_SDCARD, p);
+        p.x -= 16;
+    }
+    if (/*wifi_enabled()*/ 1) {
+        tf_draw_glyph(s_fb, s_icons, FONT_ICON_WIFI4, p);
+        p.x -= 16;
+    }
+    tf_draw_glyph(s_fb, s_icons, FONT_ICON_SPEAKER3, p);
+    p.x -= 16;
+
+    display_update_rect(s_rect);
 }

@@ -13,14 +13,12 @@ struct gbuf_t *gbuf_new(uint16_t width, uint16_t height, uint16_t bytes_per_pixe
     g->height = height;
     g->bytes_per_pixel = bytes_per_pixel;
     g->endian = endian;
-    g->mutex = xSemaphoreCreateMutex();
 
     return g;
 }
 
 void gbuf_free(struct gbuf_t *g)
 {
-    vSemaphoreDelete(g->mutex);
     free(g);
 }
 
