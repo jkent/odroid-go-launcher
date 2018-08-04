@@ -131,21 +131,21 @@ short tf_draw_glyph(struct gbuf_t *g, struct tf_t *tf, char c, struct point_t p)
     short ystart = p.y < 0 ? -p.y : 0;
     short yend = p.y + tf->font->height > g->height ? g->height - p.y : tf->font->height;
 
-    if (tf->rect.width > 0) {
-        if (p.x + xstart < tf->rect.x) {
-            xstart = tf->rect.x - p.x;
+    if (tf->clip.width > 0) {
+        if (p.x + xstart < tf->clip.x) {
+            xstart = tf->clip.x - p.x;
         }
-        if (p.x + xend > tf->rect.x + tf->rect.width) {
-            xend = tf->rect.x + tf->rect.width - p.x;
+        if (p.x + xend > tf->clip.x + tf->clip.width) {
+            xend = tf->clip.x + tf->clip.width - p.x;
         }
     }
 
-    if (tf->rect.height > 0) {
-        if (p.y + ystart < tf->rect.y) {
-            ystart = tf->rect.y - p.y;
+    if (tf->clip.height > 0) {
+        if (p.y + ystart < tf->clip.y) {
+            ystart = tf->clip.y - p.y;
         }
-        if (p.y + yend > tf->rect.y + tf->rect.height) {
-            yend = tf->rect.y + tf->rect.height - p.y;
+        if (p.y + yend > tf->clip.y + tf->clip.height) {
+            yend = tf->clip.y + tf->clip.height - p.y;
         }
     }
 
@@ -196,7 +196,7 @@ void tf_draw_str(struct gbuf_t *g, struct tf_t *tf, const char *s, struct point_
         for (int i = 0; i < ii.len; i++) {
             struct point_t gp = {p.x + xoff, p.y + yoff};
             xoff += tf_draw_glyph(g, tf, ii.s[i], gp);
-            if (tf->rect.width > 0 && xoff + p.x > tf->rect.x + tf->rect.width) {
+            if (tf->clip.width > 0 && xoff + p.x > tf->clip.x + tf->clip.width) {
                 break;
             }
         }

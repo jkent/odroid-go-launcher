@@ -20,7 +20,7 @@ struct tf_t {
     uint16_t color;
     short width;
     uint16_t flags;
-    struct rect_t rect;
+    struct rect_t clip;
 };
 
 struct tf_font_t {
