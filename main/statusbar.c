@@ -1,7 +1,7 @@
 #include "statusbar.h"
 
-#include "../components/hardware/display.h"
-#include "../components/hardware/sdcard.h"
+#include "display.h"
+#include "sdcard.h"
 
 #include "OpenSans_Regular_11X12.h"
 #include "icons_16X16.h"

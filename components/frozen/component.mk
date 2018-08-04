@@ -9,3 +9,4 @@
 
 COMPONENT_SRCDIRS = frozen
 COMPONENT_OBJS = frozen/frozen.o
+COMPONENT_ADD_INCLUDEDIRS = frozen

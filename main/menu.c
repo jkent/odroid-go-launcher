@@ -3,8 +3,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#include "../components/hardware/display.h"
-#include "../components/hardware/keypad.h"
+#include "display.h"
+#include "keypad.h"
 
 #include "graphics.h"
 #include "OpenSans_Regular_11X12.h"

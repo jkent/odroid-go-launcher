@@ -1,12 +1,17 @@
+#include <errno.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "nvs_flash.h"
 #include "esp_spiffs.h"
 
-#include "../components/hardware/display.h"
-#include "../components/hardware/backlight.h"
-#include "../components/hardware/keypad.h"
-#include "../components/hardware/sdcard.h"
+#include "display.h"
+#include "backlight.h"
+#include "keypad.h"
+#include "sdcard.h"
 
 #include "app.h"
 #include "graphics.h"
@@ -15,10 +20,6 @@
 #include "OpenSans_Regular_11X12.h"
 #include "statusbar.h"
 
-#include <errno.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
 
 void dismiss_fn(struct menu_t *menu, int offset, void *arg)
 {

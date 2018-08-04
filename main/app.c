@@ -1,5 +1,5 @@
 #include "app.h"
-#include "../components/hardware/sdcard.h"
+#include "sdcard.h"
 
 #include "esp_ota_ops.h"
 #include "esp_partition.h"
