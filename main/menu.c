@@ -9,6 +9,7 @@
 
 #include "graphics.h"
 #include "OpenSans_Regular_11X12.h"
+#include "statusbar.h"
 #include "tf.h"
 
 #include "menu.h"
@@ -18,8 +19,8 @@ struct menu_item_t;
 
 struct menu_t {
     struct gbuf_t *g;
-    struct gbuf_t *g_saved;
     struct rect_t rect;
+    struct menu_t *parent;
     short border_width;
     struct tf_t *tf_text;
     size_t item_count;
@@ -30,10 +31,12 @@ struct menu_t {
     short item_height;
     short yshift;
     bool dismissed;
+    menu_task_t task_fn;
 };
 
 enum menu_item_type_t {
     MENU_ITEM_TYPE_TEXT,
+    MENU_ITEM_TYPE_STRDUP,
     MENU_ITEM_TYPE_LIST,
     MENU_ITEM_TYPE_DIVIDER,
     MENU_ITEM_TYPE_TITLE,
@@ -51,21 +54,18 @@ struct menu_item_t {
     void *arg;
 };
 
+struct menu_t *menu_top = NULL;
 
-struct menu_t *menu_new(struct gbuf_t *g, short width, short height)
+struct menu_t *menu_new(struct rect_t rect, menu_task_t task_fn)
 {
     struct menu_t *menu = calloc(1, sizeof(struct menu_t));
     assert(menu != NULL);
 
-    menu->g = g;
-    menu->g_saved = gbuf_new(width, height, 2, BIG_ENDIAN);
-    menu->rect.x = g->width/2 - width/2;
-    menu->rect.y = g->height/2 - height/2;
-    menu->rect.width = width;
-    menu->rect.height = height;
+    menu->g = gbuf_new(rect.width, rect.height, 2, BIG_ENDIAN);
+    menu->rect = rect;
     menu->border_width = 2;
 
-    menu->tf_text = tf_new(&font_OpenSans_Regular_11X12, width - 2 * menu->border_width, TF_ELIDE);
+    menu->tf_text = tf_new(&font_OpenSans_Regular_11X12, menu->rect.width - 2 * menu->border_width, TF_ELIDE);
     menu->tf_text->clip.x = menu->rect.x + menu->border_width;
     menu->tf_text->clip.y = menu->rect.y + menu->border_width;
     menu->tf_text->clip.width = menu->rect.width - 2 * menu->border_width;
@@ -73,6 +73,8 @@ struct menu_t *menu_new(struct gbuf_t *g, short width, short height)
 
     menu->item_height = menu->tf_text->font->height + 2;
     menu->item_displayed = (menu->rect.height - 2 * menu->border_width + menu->item_height - 1) / menu->item_height;
+
+    menu->task_fn = task_fn;
 
     return menu;
 }
@@ -87,15 +89,15 @@ void menu_free(struct menu_t *menu)
 
     tf_free(menu->tf_text);
 
-    gbuf_free(menu->g_saved);
+    gbuf_free(menu->g);
 
     free(menu);
 }
 
 void menu_draw(struct menu_t *menu)
 {
-    draw_rectangle(menu->g, menu->rect, DRAW_TYPE_FILL, 0x0000);
-    draw_rectangle(menu->g, menu->rect, DRAW_TYPE_OUTLINE, 0xFFFF);
+    draw_rectangle(fb, menu->rect, DRAW_TYPE_FILL, 0x0000);
+    draw_rectangle(fb, menu->rect, DRAW_TYPE_OUTLINE, 0xFFFF);
 
     struct menu_item_t *item = &menu->items[menu->item_selected];
     while (menu->item_selected < menu->item_count && item->type == MENU_ITEM_TYPE_TITLE) {
@@ -120,36 +122,39 @@ void menu_draw(struct menu_t *menu)
             .x = r.x,
             .y = r.y + 2,
         };
-        if (menu->item_first + row == menu->item_selected) {
-            draw_rectangle(menu->g, r, DRAW_TYPE_FILL, 0x001F);
-        }
 
         switch (item->type) {
             case MENU_ITEM_TYPE_TEXT:
+            case MENU_ITEM_TYPE_STRDUP:
             case MENU_ITEM_TYPE_LIST:
                 if (menu->item_first + row == menu->item_selected) {
-                    draw_rectangle(menu->g, r, DRAW_TYPE_FILL, 0x001F);
+                    draw_rectangle(fb, r, DRAW_TYPE_FILL, 0x001F);
                 }
                 menu->tf_text->flags = TF_ELIDE;
                 menu->tf_text->color = 0xFFFF;
                 break;
+
             case MENU_ITEM_TYPE_TITLE:
-                draw_rectangle(menu->g, r, DRAW_TYPE_FILL, 0xFFFF);
+                draw_rectangle(fb, r, DRAW_TYPE_FILL, 0xFFFF);
                 menu->tf_text->flags = TF_ALIGN_CENTER | TF_ELIDE;
                 menu->tf_text->color = 0x0000;
                 break;
+
             case MENU_ITEM_TYPE_DIVIDER:
                 break;
         }
 
         switch (item->type) {
             case MENU_ITEM_TYPE_TEXT:
+            case MENU_ITEM_TYPE_STRDUP:
             case MENU_ITEM_TYPE_TITLE:
-                tf_draw_str(menu->g, menu->tf_text, item->label, p);
+                tf_draw_str(fb, menu->tf_text, item->label, p);
                 break;
+
             case MENU_ITEM_TYPE_LIST:
-                tf_draw_str(menu->g, menu->tf_text, item->list[item->value], p);
+                tf_draw_str(fb, menu->tf_text, item->list[item->value], p);
                 break;
+
             case MENU_ITEM_TYPE_DIVIDER: {
                 struct rect_t line = {
                     .x = r.x,
@@ -157,7 +162,7 @@ void menu_draw(struct menu_t *menu)
                     .width = r.width,
                     .height = 1,
                 };
-                draw_rectangle(menu->g, line, DRAW_TYPE_FILL, 0xFFFF);
+                draw_rectangle(fb, line, DRAW_TYPE_FILL, 0xFFFF);
                 break;
             }
         }
@@ -170,7 +175,7 @@ static void menu_hide(struct menu_t *menu)
 {
     struct rect_t src_rect = {0, 0, menu->rect.width, menu->rect.height};
 
-    blit(menu->g, menu->rect, menu->g_saved, src_rect);
+    blit(fb, menu->rect, menu->g, src_rect);
     display_update_rect(menu->rect);
 }
 
@@ -178,9 +183,12 @@ void menu_showmodal(struct menu_t *menu)
 {
     struct rect_t dst_rect = {0, 0, menu->rect.width, menu->rect.height};
 
+    menu->parent = menu_top;
+    menu_top = menu;
+
     menu->dismissed = false;
 
-    blit(menu->g_saved, dst_rect, menu->g, menu->rect);
+    blit(menu->g, dst_rect, fb, menu->rect);
     menu_draw(menu);
 
     uint16_t keys = 0, changes = 0, pressed = 0;
@@ -192,7 +200,7 @@ void menu_showmodal(struct menu_t *menu)
         struct menu_item_t *item = &menu->items[menu->item_selected];
 
         if (pressed & KEYPAD_A) {
-            if (item->on_select != NULL) {
+            if (menu->item_selected < menu->item_count && item->on_select != NULL) {
                 item->on_select(menu, menu->item_selected, item->arg);
             }
         } else if (pressed & KEYPAD_UP) {
@@ -231,10 +239,23 @@ void menu_showmodal(struct menu_t *menu)
 
                 menu_draw(menu);
             }
+        } else if (pressed & KEYPAD_MENU) {
+            struct menu_t *m = menu;
+            do {
+                m->dismissed = true;
+                m = m->parent;
+            } while (m);
         }
+
+        if (menu->task_fn != NULL) {
+            menu->task_fn(menu);
+        }
+
+        statusbar_update();
     } while (!(pressed & KEYPAD_B) && !menu->dismissed);
 
     menu_hide(menu);
+    menu_top = menu->parent;
 }
 
 static struct menu_item_t *menu_insert_new(struct menu_t *menu, int index)
@@ -267,11 +288,33 @@ void menu_insert_text(struct menu_t *menu, int index, const char *label, menu_ca
     item->label = label;
     item->on_select = on_select;
     item->arg = arg;
+
+    if (menu_top == menu) {
+        menu_draw(menu);
+    }
 }
 
 void menu_append_text(struct menu_t *menu, const char *label, menu_callback_t on_select, void *arg)
 {
     menu_insert_text(menu, menu->item_count, label, on_select, arg);
+}
+
+void menu_insert_strdup(struct menu_t *menu, int index, const char *label, menu_callback_t on_select, void *arg)
+{
+    struct menu_item_t *item = menu_insert_new(menu, index);
+    item->type = MENU_ITEM_TYPE_STRDUP;
+    item->label = strdup(label);
+    item->on_select = on_select;
+    item->arg = arg;
+
+    if (menu_top == menu) {
+        menu_draw(menu);
+    }
+}
+
+void menu_append_strdup(struct menu_t *menu, const char *label, menu_callback_t on_select, void *arg)
+{
+    menu_insert_strdup(menu, menu->item_count, label, on_select, arg);
 }
 
 void menu_insert_list(struct menu_t *menu, int index, const char **list, int value, menu_callback_t on_select, void *arg)
@@ -286,6 +329,10 @@ void menu_insert_list(struct menu_t *menu, int index, const char **list, int val
     item->value = value;
     item->on_select = on_select;
     item->arg = arg;
+
+    if (menu_top == menu) {
+        menu_draw(menu);
+    }
 }
 
 void menu_append_list(struct menu_t *menu, const char **list, int value, menu_callback_t on_select, void *arg)
@@ -297,6 +344,10 @@ void menu_insert_divider(struct menu_t *menu, int index)
 {
     struct menu_item_t *item = menu_insert_new(menu, index);
     item->type = MENU_ITEM_TYPE_DIVIDER;
+
+    if (menu_top == menu) {
+        menu_draw(menu);
+    }
 }
 
 void menu_append_divider(struct menu_t *menu) {
@@ -308,6 +359,10 @@ void menu_insert_title(struct menu_t *menu, int index, const char *label)
     struct menu_item_t *item = menu_insert_new(menu, index);
     item->type = MENU_ITEM_TYPE_TITLE;
     item->label = label;
+
+    if (menu_top == menu) {
+        menu_draw(menu);
+    }
 }
 
 void menu_append_title(struct menu_t *menu, const char *label)
@@ -322,6 +377,18 @@ void menu_remove(struct menu_t *menu, int index)
     }
     assert(index < menu->item_count);
 
+    struct menu_item_t *item = &menu->items[menu->item_selected];
+    switch (item->type) {
+        case MENU_ITEM_TYPE_STRDUP:
+            if (item->label) {
+                free((void *)item->label);
+            }
+            break;
+
+        default:
+            break;
+    }
+
     if (menu->item_count == 1) {
         free(menu->items);
         menu->items = NULL;
@@ -334,6 +401,10 @@ void menu_remove(struct menu_t *menu, int index)
     }
 
     menu->item_count -= 1;
+
+    if (menu_top == menu) {
+        menu_draw(menu);
+    }
 }
 
 void menu_dismiss(struct menu_t *menu)
@@ -365,7 +436,7 @@ void menu_set_value(struct menu_t *menu, int index, int value)
     }
     int old_value = item->value;
     item->value = value;
-    if (old_value != value) {
+    if (menu_top == menu && old_value != value) {
         menu_draw(menu);
     }
 }
@@ -383,10 +454,12 @@ int menu_get_list_size(struct menu_t *menu, int index)
 
 void menu_list_cycle(struct menu_t *menu, int index, void *arg)
 {
-    struct menu_item_t *item = &menu->items[index];
-    item->value++;
-    if (item->value >= item->list_size) {
-        item->value = 0;
+    int count = menu_get_list_size(menu, index);
+    int value = menu_get_value(menu, index);
+
+    value += 1;
+    if (value >= count) {
+        value = 0;
     }
-    menu_draw(menu);
+    menu_set_value(menu, index, value);
 }

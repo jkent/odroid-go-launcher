@@ -7,7 +7,9 @@
 #define DISPLAY_WIDTH (320)
 #define DISPLAY_HEIGHT (240)
 
-struct gbuf_t *display_init(void);
+struct gbuf_t *fb;
+
+void display_init(void);
 void display_poweroff(void);
 void display_clear(uint16_t color);
 void display_update(void);

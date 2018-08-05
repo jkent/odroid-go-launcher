@@ -34,7 +34,7 @@ static bool waitForTransactions = false;
 #define PARALLEL_LINES (5)
 
 static uint16_t* pbuf[2];
-static struct gbuf_t *fb;
+struct gbuf_t *fb = NULL;
 
 /*
  The ILI9341 needs a bunch of command/argument values to be initialized. They are stored in this struct.
@@ -232,7 +232,7 @@ static uint16_t *get_pbuf(void) {
     return result;
 }
 
-struct gbuf_t *display_init(void)
+void display_init(void)
 {
     fb = gbuf_new(DISPLAY_WIDTH, DISPLAY_HEIGHT, 2, BIG_ENDIAN);
     memset(fb->pixel_data, 0, fb->width * fb->height * fb->bytes_per_pixel);
@@ -289,8 +289,6 @@ struct gbuf_t *display_init(void)
     assert(ret == ESP_OK);
 
     ili_init();
-
-    return fb;
 }
 
 void display_drain(void)

@@ -6,6 +6,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "nvs_flash.h"
+#include "esp_err.h"
 #include "esp_spiffs.h"
 
 #include "display.h"
@@ -19,16 +20,12 @@
 #include "tf.h"
 #include "OpenSans_Regular_11X12.h"
 #include "statusbar.h"
+#include "wifi.h"
 
-
-void dismiss_fn(struct menu_t *menu, int offset, void *arg)
-{
-    menu_dismiss(menu);
-}
 
 void app_main(void)
 {
-    struct gbuf_t *fb = display_init();
+    display_init();
     backlight_init();
 
     struct tf_t *tf = tf_new(&font_OpenSans_Regular_11X12, 240, TF_ALIGN_CENTER | TF_WORDWRAP);
@@ -44,7 +41,8 @@ void app_main(void)
     display_update();
 
     keypad_init();
-    nvs_flash_init();
+    ESP_ERROR_CHECK(nvs_flash_init());
+    wifi_init();
     sdcard_init("/sdcard");
 
     esp_vfs_spiffs_conf_t conf = {
@@ -54,8 +52,8 @@ void app_main(void)
       .format_if_mount_failed = true,
     };
 
-    esp_err_t ret = esp_vfs_spiffs_register(&conf);
-    assert(ret == ESP_OK);
+    ESP_ERROR_CHECK(esp_vfs_spiffs_register(&conf));
+    statusbar_init();
 
     s = "Press Menu button for menu or A to boot hello-world.bin app.";
     m = tf_get_str_metrics(tf, s);
@@ -71,28 +69,22 @@ void app_main(void)
             vTaskDelay(10 / portTICK_PERIOD_MS);
             keys = keypad_debounce(keypad_sample(), &changes);
             pressed = keys & changes;
+            statusbar_update();
         } while (!(pressed & KEYPAD_MENU) && !(pressed & KEYPAD_A));
 
         if (pressed & KEYPAD_A) {
             break;
         }
 
-        struct menu_t *menu = menu_new(fb, 240, 80);
-
-        menu_append_title(menu, "This is a title!");
-        const char *wifi_state_list[] = {
-            "Enable WiFi",
-            "Disable WiFi",
-            NULL,
+        struct rect_t r = {
+            .x = DISPLAY_WIDTH/2 - 240/2,
+            .y = DISPLAY_HEIGHT/2 - 180/2,
+            .width = 240,
+            .height = 180,
         };
-        menu_append_list(menu, wifi_state_list, 0, menu_list_cycle, NULL);
-        menu_append_text(menu, "The quick brown fox jumps over the lazy dog.", NULL, NULL);
-        menu_append_text(menu, "Hello World!", NULL, NULL);
-        menu_append_text(menu, "3nd line", NULL, NULL);
-        menu_append_text(menu, "4th line", NULL, NULL);
-        menu_append_text(menu, "5th line", NULL, NULL);
-        menu_append_divider(menu);
-        menu_append_text(menu, "Dismiss", dismiss_fn, NULL);
+
+        struct menu_t *menu = menu_new(r, NULL);
+        menu_append_text(menu, "WiFi Settings", wifi_menu_fn, NULL);
         menu_showmodal(menu);
         menu_free(menu);
     }
