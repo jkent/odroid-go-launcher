@@ -1,3 +1,3 @@
 #pragma once
 
-void app_run(const char *app);
+void app_run(const char *name);

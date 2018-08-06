@@ -1,3 +1,4 @@
+#include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,18 +13,6 @@
 
 #include "app.h"
 
-
-static char *replace_ext(const char *app, const char *ext)
-{
-    size_t app_len = strlen(app);
-    char *ini = malloc(app_len + strlen(ext) + 1);
-    if (!ini) abort();
-    strcpy(ini, app);
-    char *p = strrchr(ini, '.');
-    if (!p) p = ini + app_len;
-    strcpy(p, ext);
-    return ini;
-}
 
 static bool ini_get(const char *ini, const char *section, const char *key,
                     char *value, size_t len)
@@ -169,28 +158,32 @@ static int semvercmp(const char *left, const char *right)
     return 0;
 }
 
-void app_run(const char *app)
+void app_run(const char *app_name)
 {
-    char *ini = replace_ext(app, ".ini");
+    char buf[PATH_MAX];
     char sd_version[32];
     bool do_flash = true;
     int i;
 
+    snprintf(buf, sizeof(buf), "/sdcard/apps/%s.ini", app_name);
+    buf[sizeof(buf) - 1] = '\0';
+    char *sdcard_ini = strdup(buf);
+
     strcpy(sd_version, "0.0.0");
-    ini_get(ini, NULL, "version", sd_version, sizeof(sd_version));
-    free(ini);
+    ini_get(sdcard_ini, NULL, "version", sd_version, sizeof(sd_version));
+    free(sdcard_ini);
 
     nvs_handle nvs;
     nvs_open("nvs", NVS_READWRITE, &nvs);
 
     for (i = 1; i < 7; i++) {
         char key[16];
-        char nvs_app[256];
-        size_t len = sizeof(nvs_app);
-        memset(nvs_app, 0, sizeof(nvs_app));
+        char nvs_app_name[256];
+        size_t len = sizeof(nvs_app_name);
+        memset(nvs_app_name, 0, sizeof(nvs_app_name));
         sprintf(key, "app%d_file", i);
-        nvs_get_str(nvs, key, nvs_app, &len);
-        if (strcmp(app, nvs_app) == 0) {
+        nvs_get_str(nvs, key, nvs_app_name, &len);
+        if (strcmp(app_name, nvs_app_name) == 0) {
             printf("found in app%d\n", i);
             break;
         }
@@ -232,10 +225,13 @@ void app_run(const char *app)
     esp_err_t err;
 
     if (do_flash) {
-        printf("writing to app%d\n", i);
+        snprintf(buf, sizeof(buf), "/sdcard/apps/%s.bin", app_name);
+        buf[sizeof(buf) - 1] = '\0';
+        char *sdcard_bin = strdup(buf);
 
-        FILE *f = fopen(app, "rb");
+        FILE *f = fopen(sdcard_bin, "rb");
         if (!f) abort();
+        free(sdcard_bin);
 
         fseek(f, 0, SEEK_END);
         long size = ftell(f);
@@ -261,7 +257,7 @@ void app_run(const char *app)
 
         char key[16];
         sprintf(key, "app%d_file", i);
-        nvs_set_str(nvs, key, app);
+        nvs_set_str(nvs, key, app_name);
         sprintf(key, "app%d_version", i);
         nvs_set_str(nvs, key, sd_version);
     }

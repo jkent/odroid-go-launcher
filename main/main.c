@@ -55,7 +55,7 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_vfs_spiffs_register(&conf));
     statusbar_init();
 
-    s = "Press Menu button for menu or A to boot hello-world.bin app.";
+    s = "Press Menu button for menu or A to boot hello-world app.";
     m = tf_get_str_metrics(tf, s);
     p.x = DISPLAY_WIDTH/2 - tf->width/2;
     p.y = DISPLAY_HEIGHT/2 - m.height/2;
@@ -97,7 +97,7 @@ void app_main(void)
     tf_draw_str(fb, tf, s, p);
     display_update();
 
-    app_run("/sdcard/apps/hello-world.bin");
+    app_run("hello-world");
 
     s = "App not found.";
     m = tf_get_str_metrics(tf, s);
