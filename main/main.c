@@ -23,6 +23,19 @@
 #include "wifi.h"
 
 
+void dump_app_info(void)
+{
+    struct app_info_t *apps = NULL;
+    size_t count = app_enumerate2(&apps);
+    printf("\n");
+    for (int i = 0; i < count; i++) {
+        printf("%s:\n    installed = %s\n    available = %s\n    upgradable = %s\n", apps[i].name, apps[i].installed ? "yes" : "no", apps[i].available ? "yes" : "no", apps[i].upgradable ? "yes" : "no");
+    }
+    if (apps) {
+        free(apps);
+    }
+}
+
 void app_main(void)
 {
     display_init();
@@ -55,7 +68,9 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_vfs_spiffs_register(&conf));
     statusbar_init();
 
-    s = "Press Menu button for menu or A to boot hello-world app.";
+    dump_app_info();
+
+    s = "Press Menu button for the menu, A to boot the hello-world app or B to remove the hello-world app.";
     m = tf_get_str_metrics(tf, s);
     p.x = DISPLAY_WIDTH/2 - tf->width/2;
     p.y = DISPLAY_HEIGHT/2 - m.height/2;
@@ -70,7 +85,13 @@ void app_main(void)
             keys = keypad_debounce(keypad_sample(), &changes);
             pressed = keys & changes;
             statusbar_update();
-        } while (!(pressed & KEYPAD_MENU) && !(pressed & KEYPAD_A));
+        } while (!(pressed & KEYPAD_MENU) && !(pressed & KEYPAD_A) && !(pressed & KEYPAD_B));
+
+        if (pressed & KEYPAD_B) {
+            app_remove("hello-world");
+            dump_app_info();
+            continue;
+        }
 
         if (pressed & KEYPAD_A) {
             break;
@@ -97,7 +118,7 @@ void app_main(void)
     tf_draw_str(fb, tf, s, p);
     display_update();
 
-    app_run("hello-world");
+    app_run("hello-world", false);
 
     s = "App not found.";
     m = tf_get_str_metrics(tf, s);

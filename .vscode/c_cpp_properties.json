@@ -5,6 +5,7 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "${workspaceFolder}/build/include",
+                "${workspaceFolder}/components/frozen/frozen",
                 "${IDF_PATH}/components/app_trace/include",
                 "${IDF_PATH}/components/app_update/include",
                 "${IDF_PATH}/components/aws_iot/include",

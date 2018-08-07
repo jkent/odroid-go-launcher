@@ -1,276 +1,509 @@
+#include <dirent.h>
 #include <limits.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "esp_ota_ops.h"
 #include "esp_partition.h"
 #include "esp_system.h"
 #include "nvs_flash.h"
 
+#include "app.h"
+#include "frozen.h"
 #include "sdcard.h"
 
-#include "app.h"
+
+#define NUM_OTA_PARTITIONS (6)
+#define APP_DIR "/sdcard/apps"
+#define APPDATA_DIR "/spiffs/appdata"
+#define APP_HEADER_MAGIC (0x21505041)
+#define APP_HEADER_VERSION (1)
+#define APP_ICON_LEN (48 * 48 * 2)
+
+struct app_header_t {
+    uint32_t magic;
+    uint32_t version;
+    uint32_t header_len;
+    uint32_t json_len;
+    uint32_t icon_len;
+    uint32_t binary_len;
+};
 
 
-static bool ini_get(const char *ini, const char *section, const char *key,
-                    char *value, size_t len)
+static bool endswith(const char *str, const char *suffix)
 {
-    char buf[256];
-    char *p;
-    bool in_section = false;
+    size_t lenstr = strlen(str);
+    size_t lensuffix = strlen(suffix);
+    if (lensuffix > lenstr)
+        return false;
+    return strncmp(str + lenstr - lensuffix, suffix, lensuffix) == 0;
+}
 
-    if (section == NULL || strlen(section) == 0) in_section = true;
-    
-    FILE *f = fopen(ini, "r");
-    if (!f) return false;
+static void remove_end(char *str, size_t count)
+{
+    size_t lenstr = strlen(str);
+    *(str + lenstr - count) = '\0';
+}
 
-    while (true) {
-        p = fgets(buf, sizeof(buf), f);
-        if (p == NULL) return NULL;
-        while (*p == ' ') p++;
-        if (*p == ';' || *p == '\n' || (*p == '\r' && *p + 1 == '\n')) {
-            continue; /* comment or blank line, ignore */
-        } else if (*p == '[') {
-            char *current_section = p + 1;
-            p = strchr(current_section, ']');
-            if (p) *p = '\0';
-            in_section = (strcasecmp(section, current_section) == 0);
-        } else if (in_section) {
-            char *current_key = p;
-            p = strchr(p, '=');
-            if (!p) continue; /* no key/value delimeter */
-            char *current_value = p + 1;
-            if (p > current_key && *p == '=') *p-- = '\0';
-            while (p > current_key && *p == ' ') *p-- = '\0';
-            if (strcasecmp(key, current_key) != 0) continue; /* not our key */
-            fclose(f);
-            while (*current_value == ' ') current_value++;
-            p = strchr(current_value, ';'); /* strip comments */
-            if (p) *p = '\0';
-            p = current_value + strlen(current_value) - 1;
-            if (p > current_value && *p == '\n') *p-- = '\0';
-            if (p > current_value && *p == '\r') *p-- = '\0';
-            while (p > current_value && *p == ' ') *p-- = '\0';
-            strncpy(value, current_value, len);
-            value[len - 1] = '\0';
-            return true;
-        }
+static int cmp_app_info(const void *a, const void *b)
+{
+    struct app_info_t *aa = (struct app_info_t *)a;
+    struct app_info_t *bb = (struct app_info_t *)b;
+    return strcmp(aa->name, bb->name);
+}
+
+static char *app_json_fread(char *filename)
+{
+    char *json;
+    FILE *f = fopen(filename, "rb");
+    struct app_header_t header;
+    if (fread(&header, sizeof(struct app_header_t), 1, f) != 1 ||
+            header.magic != APP_HEADER_MAGIC ||
+            header.version != APP_HEADER_VERSION) {
+        return NULL;
     }
 
-    fclose(f);
-    return false;
-} 
+    json = malloc(header.json_len + 1);
+    if (!json) return NULL;
+    if (fread(json, header.json_len, 1, f) != 1) {
+        free(json);
+        return NULL;
+    }
+    json[header.json_len] = '\0';
+    return json;
+}
 
-static int semvercmp(const char *left, const char *right)
+/* when comparison fails, right is considered newer */
+static int versioncmp(const char *left, const char *right)
 {
     int lmajor = 0, lminor = 0, lpatch = 0;
     int rmajor = 0, rminor = 0, rpatch = 0;
-    char *lprerelease = NULL;
-    char *rprerelease = NULL;
+    char *lpre = NULL, *rpre = NULL;
 
-    char *s_left = strdup(left);
-    char *p = strtok(s_left, ".");
-    if (p) {
-        lmajor = strtol(p, NULL, 10);
-        p = strtok(NULL, ".");
+    bool l_semver = !!strchr(left, '.');
+    bool r_semver = !!strchr(right, '.');
+
+    if (!l_semver && !r_semver) {
+        return strcmp(left, right);
+    } else if (l_semver && r_semver) {
+        char *ls = strdup(left);
+        char *rs = strdup(right);
+        if (ls == NULL || rs == NULL) abort();
+
+        char *rest = ls;
+        char *p = strtok_r(rest, ".", &rest);
         if (p) {
-            lminor = strtol(p, NULL, 10);
-            p = strtok(NULL, ".");
+            lmajor = strtol(p, NULL, 10);
+            p = strtok_r(rest, ".", &rest);
             if (p) {
-                lpatch = strtol(p, NULL, 10);
-                p = strtok(NULL, "-");
+                lminor = strtol(p, NULL, 10);
+                p = strtok_r(rest, "-+", &rest);
                 if (p) {
-                    lprerelease = p;
+                    lpatch = strtol(p, NULL, 10);
+                    lpre = strtok_r(rest, "+", &rest);
                 }
-                strtok(NULL, "+");
             }
         }
-    }
 
-    char *s_right = strdup(right);
-    p = strtok(s_right, ".");
-    if (p) {
-        rmajor = strtol(p, NULL, 10);
-        p = strtok(NULL, ".");
+        rest = rs;
+        p = strtok_r(rest, ".", &rest);
         if (p) {
-            rminor = strtol(p, NULL, 10);
-            p = strtok(NULL, ".");
+            rmajor = strtol(p, NULL, 10);
+            p = strtok_r(rest, ".", &rest);
             if (p) {
-                rpatch = strtol(p, NULL, 10);
-                p = strtok(NULL, "-");
+                rminor = strtol(p, NULL, 10);
+                p = strtok_r(rest, "-+", &rest);
                 if (p) {
-                    rprerelease = p;
+                    rpatch = strtol(p, NULL, 10);
+                    rpre = strtok_r(rest, "+", &rest);
                 }
-                strtok(NULL, "+");
             }
         }
-    }
 
-    if (lmajor < rmajor) {
-        free(s_left);
-        free(s_right);
+        int cmp = (lmajor > rmajor) - (lmajor < rmajor);
+        if (cmp) {
+            goto semver_done;
+        }
+
+        cmp = (lminor > rminor) - (lminor < rminor);
+        if (cmp) {
+            goto semver_done;
+        }
+
+        cmp = (lpatch > rpatch) - (lpatch < rpatch);
+        if (cmp) {
+            goto semver_done;
+        }
+
+        if (lpre && !rpre) {
+            cmp = -1;
+            goto semver_done;
+        } else if (!lpre && rpre) {
+            cmp = 1;
+            goto semver_done;
+        } else if (lpre && rpre) {
+            cmp = strcmp(lpre, rpre);
+            goto semver_done;
+        }
+
+semver_done:
+        free(ls);
+        free(rs);
+        return cmp;
+    } else {
         return -1;
-    } else if (lmajor > rmajor) {
-        free(s_left);
-        free(s_right);
-        return 1;
     }
-
-    if (lminor < rminor) {
-        free(s_left);
-        free(s_right);
-        return -1;
-    } else if (lminor > rminor) {
-        free(s_left);
-        free(s_right);
-        return 1;
-    }
-
-    if (lpatch < rpatch) {
-        free(s_left);
-        free(s_right);
-        return -1;
-    } else if (lpatch > rpatch) {
-        free(s_left);
-        free(s_right);
-        return 1;
-    }
-
-    if (lprerelease && !rprerelease) {
-        free(s_left);
-        free(s_right);
-        return -1;
-    } else if (!lprerelease && rprerelease) {
-        free(s_left);
-        free(s_right);
-        return 1;
-    } else if (lprerelease && rprerelease) {
-        int res = strcmp(lprerelease, rprerelease);
-        free(s_left);
-        free(s_right);
-        return res;
-    }
-
-    free(s_left);
-    free(s_right);
-    return 0;
 }
 
-void app_run(const char *app_name)
+static int app_get_slot(const char *name, bool *installed)
 {
-    char buf[PATH_MAX];
-    char sd_version[32];
-    bool do_flash = true;
-    int i;
+    int slot;
 
-    snprintf(buf, sizeof(buf), "/sdcard/apps/%s.ini", app_name);
-    buf[sizeof(buf) - 1] = '\0';
-    char *sdcard_ini = strdup(buf);
-
-    strcpy(sd_version, "0.0.0");
-    ini_get(sdcard_ini, NULL, "version", sd_version, sizeof(sd_version));
-    free(sdcard_ini);
+    *installed = false;
 
     nvs_handle nvs;
-    nvs_open("nvs", NVS_READWRITE, &nvs);
+    nvs_open("nvs", NVS_READONLY, &nvs);
 
-    for (i = 1; i < 7; i++) {
-        char key[16];
-        char nvs_app_name[256];
-        size_t len = sizeof(nvs_app_name);
-        memset(nvs_app_name, 0, sizeof(nvs_app_name));
-        sprintf(key, "app%d_file", i);
-        nvs_get_str(nvs, key, nvs_app_name, &len);
-        if (strcmp(app_name, nvs_app_name) == 0) {
-            printf("found in app%d\n", i);
-            break;
+    for (slot = 1; slot <= NUM_OTA_PARTITIONS; slot++) {
+        char key[5], value[256];
+        size_t len = sizeof(value);
+        snprintf(key, sizeof(key), "app%d", slot);
+        if (nvs_get_str(nvs, key, value, &len) != ESP_OK) {
+            continue;
+        }
+        if (strcmp(name, value) == 0) {
+            *installed = true;
+            goto end;
         }
     }
 
-    char mru[7];
+    char mru[NUM_OTA_PARTITIONS + 1];
+    for (int i = 0; i < NUM_OTA_PARTITIONS; i++) {
+        mru[i] = '1' + i;
+    }
+    mru[NUM_OTA_PARTITIONS] = '\0';
     size_t len = sizeof(mru);
-    strcpy(mru, "123456");
-    nvs_get_str(nvs, "app_mru", mru, &len);
+    nvs_get_str(nvs, "mru", mru, &len);
 
-    printf("mru: %s\n", mru);
+    slot = mru[0] - '0';
 
-    if (i < 7) {
-        char key[16];
-        char nvs_version[32];
-        size_t len = sizeof(nvs_version);
-        memset(nvs_version, 0, sizeof(nvs_version));
-        sprintf(key, "app%d_version", i);
-        nvs_get_str(nvs, key, nvs_version, &len);
-        
-        printf("sd: %s, nvs: %s\n", sd_version, nvs_version);
-        if (!sdcard_present()) {
-            do_flash = false;
-        } else if (strchr(sd_version, '.') && strchr(nvs_version, '.')) {
-            if (semvercmp(sd_version, nvs_version) <= 0) {
-                do_flash = false;
-            }
-        } else if (!strchr(sd_version, '.') && !strchr(nvs_version, '.')) {
-            if (strcmp(sd_version, nvs_version) <= 0) {
-                do_flash = false;
-            }
+end:
+    nvs_close(nvs);
+    return slot;
+}
+
+bool app_info(const char *name, struct app_info_t *info)
+{
+    char filename[PATH_MAX];
+
+    memset(info, 0, sizeof(struct app_info_t));
+
+    strncpy(info->name, name, sizeof(info->name));
+    info->slot_num = app_get_slot(name, &info->installed);
+
+    struct stat st;
+    snprintf(filename, sizeof(filename), "%s/%s.app", APP_DIR, name);
+    info->available = stat(filename, &st) == 0;
+
+    if (info->installed && info->available) {
+        /* first get sdcard version */
+        char *json = app_json_fread(filename);
+        if (json == NULL) {
+            info->available = false;
+            return true;
         }
-    } else {
-        i = mru[0] - '0';
-    }
-
-    const esp_partition_t *part = esp_partition_find_first(
-        ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_MIN + i, NULL);
-    esp_err_t err;
-
-    if (do_flash) {
-        snprintf(buf, sizeof(buf), "/sdcard/apps/%s.bin", app_name);
-        buf[sizeof(buf) - 1] = '\0';
-        char *sdcard_bin = strdup(buf);
-
-        FILE *f = fopen(sdcard_bin, "rb");
-        if (!f) abort();
-        free(sdcard_bin);
-
-        fseek(f, 0, SEEK_END);
-        long size = ftell(f);
-        fseek(f, 0, SEEK_SET);
-
-        esp_ota_handle_t ota_handle;
-        err = esp_ota_begin(part, size, &ota_handle);
-        if (err) abort();
-
-        char *buf = malloc(4096);
-        if (!buf) abort();
-
-        while (true) {
-            size_t len = fread(buf, 1, 4096, f);
-            if (len == 0) break;
-
-            err = esp_ota_write(ota_handle, buf, len);
-            if (err) abort();
+        char *sdcard_version;
+        json_scanf(json, strlen(json), "{version: %Q}", &sdcard_version);
+        free(json);
+        if (sdcard_version == NULL) {
+            info->available = false;
+            return true;
         }
 
-        err = esp_ota_end(ota_handle);
-        if (err) abort();
+        /* then get the installed version */
+        snprintf(filename, sizeof(filename), "%s/app%d.json", APPDATA_DIR, info->slot_num);
+        json = json_fread(filename);
+        if (json == NULL) {
+            free(sdcard_version);
+            info->installed = false;
+            return true;
+        }
+        char *installed_version;
+        json_scanf(json, strlen(json), "{version: %Q}", &installed_version);
+        free(json);
+        if (installed_version == NULL) {
+            free(sdcard_version);
+            info->installed = false;
+            return true;
+        }
 
-        char key[16];
-        sprintf(key, "app%d_file", i);
-        nvs_set_str(nvs, key, app_name);
-        sprintf(key, "app%d_version", i);
-        nvs_set_str(nvs, key, sd_version);
+        /* and compare them */
+        if (versioncmp(installed_version, sdcard_version) < 0) {
+            free(installed_version);
+            free(sdcard_version);
+            info->upgradable = true;
+            return true;
+        }
+        free(installed_version);
+        free(sdcard_version);
     }
 
-    char *p = strchr(mru, '0' + i);
-    memmove(p, p + 1, strlen(mru) - (p - mru));
-    mru[strlen(mru)] = '0' + i;
-    nvs_set_str(nvs, "app_mru", mru);
+    return true;
+}
 
-    nvs_commit(nvs);
+size_t app_enumerate(struct app_info_t **apps)
+{
+    size_t count = 0;
+    struct app_info_t *info = *apps;
+
+    /* first find all apps in flash */
+    nvs_handle nvs;
+    nvs_open("nvs", NVS_READONLY, &nvs);
+
+    for (int i = 0; i < NUM_OTA_PARTITIONS; i++) {
+        char key[5], value[256];
+        size_t len = sizeof(value);
+
+        snprintf(key, sizeof(key), "app%d", i);
+        if (nvs_get_str(nvs, key, value, &len) != ESP_OK) {
+            continue;
+        }
+
+        info = realloc(info, sizeof(struct app_info_t) * (count + 1));
+        app_info(value, &info[count]);
+        count += 1;
+    }
+
     nvs_close(nvs);
 
-    esp_ota_set_boot_partition(part);
+    /* next list all files in the apps directory */
+    DIR *dir;
+    struct dirent *dent;
 
+    if ((dir = opendir(APP_DIR)) == NULL) {
+        goto sort;
+    }
+
+    while ((dent = readdir(dir)) != NULL) {
+        if (dent->d_type != DT_REG || !endswith(dent->d_name, ".app")) {
+            continue;
+        }
+        remove_end(dent->d_name, 4);
+
+        int i;
+        for (i = 0; i < count; i++) {
+            if (strcmp(info[i].name, dent->d_name) == 0) {
+                break;
+            }
+        }
+
+        if (i < count) {
+            continue;
+        }
+
+        info = realloc(info, sizeof(struct app_info_t) * (count + 1));
+        app_info(dent->d_name, &info[count]);
+        count += 1;
+    }
+
+    closedir(dir);
+
+sort:
+    qsort(info, count, sizeof(struct app_info_t), cmp_app_info);
+    *apps = info;
+    return count;
+}
+
+bool app_install(const char *name, int slot)
+{
+    nvs_handle nvs = 0;
+    char key[5];
+    const esp_partition_t *part;
+    char filename[PATH_MAX];
+    FILE *app = NULL, *out = NULL;
+    char *buf = NULL;
+    struct app_header_t header;
+    esp_ota_handle_t ota_handle;
+
+    assert(slot > 0 && slot <= NUM_OTA_PARTITIONS);
+
+    part = esp_partition_find_first(ESP_PARTITION_TYPE_APP,
+        ESP_PARTITION_SUBTYPE_APP_OTA_MIN + slot, NULL);
+    if (!part) {
+        goto error;
+    }
+
+    snprintf(filename, sizeof(filename), "%s/%s.app", APP_DIR, name);
+    if (!(app = fopen(filename, "rb"))) {
+        goto error;
+    }
+
+    if (fread(&header, sizeof(struct app_header_t), 1, app) != 1 ||
+            header.magic != APP_HEADER_MAGIC ||
+            header.version != APP_HEADER_VERSION) {
+        goto error;
+    }
+
+    /* mark slot as free */
+    ESP_ERROR_CHECK(nvs_open("nvs", NVS_READWRITE, &nvs));
+    snprintf(key, sizeof(key), "app%d", slot);
+    nvs_erase_key(nvs, key);
+    ESP_ERROR_CHECK(nvs_commit(nvs));
+
+    /* copy json to appdata */
+    snprintf(filename, sizeof(filename), "%s/app%d.json", APPDATA_DIR, slot);
+    if (!(buf = malloc(header.json_len))) {
+        goto error;
+    }
+
+    if (fread(buf, header.json_len, 1, app) != 1) {
+        goto error;
+    }
+
+    if (!(out = fopen(filename, "w"))) {
+        goto error;
+    }
+    if (fwrite(buf, header.json_len, 1, out) != 1) {
+        goto error;
+    }
+    fclose(out);
+    out = NULL;
+
+    /* copy icons to appdata */
+    snprintf(filename, sizeof(filename), "%s/app%d.icons", APPDATA_DIR, slot);
+
+    if (header.icon_len == 0) {
+        unlink(filename);
+    } else {
+        if (header.icon_len % APP_ICON_LEN != 0) {
+            goto error;
+        }
+
+        size_t count = header.icon_len / APP_ICON_LEN;
+
+        if (!(buf = realloc(buf, APP_ICON_LEN))) {
+            goto error;
+        }
+
+        if (!(out = fopen(filename, "wb"))) {
+            goto error;
+        }
+
+        for (int i = 0; i < count; i++) {
+            if (fread(buf, APP_ICON_LEN, 1, app) != 1) {
+                goto error;
+            }
+            if (fwrite(buf, APP_ICON_LEN, 1, out) != 1) {
+                goto error;
+            }
+        }
+
+        fclose(out);
+        out = NULL;
+    }
+
+    /* copy binary to flash */
+    if (!(buf = realloc(buf, 4096))) {
+        goto error;
+    }
+
+    ESP_ERROR_CHECK(esp_ota_begin(part, header.binary_len, &ota_handle));
+    while (true) {
+        size_t len = fread(buf, 1, 4096, app);
+        if (len == 0) {
+            break;
+        }
+        ESP_ERROR_CHECK(esp_ota_write(ota_handle, buf, len));
+    }
+    ESP_ERROR_CHECK(esp_ota_end(ota_handle));
+
+    fclose(app);
+
+    /* mark slot with app name */
+    snprintf(key, sizeof(key), "app%d", slot);
+    ESP_ERROR_CHECK(nvs_set_str(nvs, key, name));
+    ESP_ERROR_CHECK(nvs_commit(nvs));
+    nvs_close(nvs);
+    return false;
+
+error:
+    if (nvs) {
+        nvs_close(nvs);
+    }
+    if (app) {
+        fclose(app);
+    }
+    if (out) {
+        fclose(out);
+    }
+    if (buf) {
+        free(buf);
+    }
+    return true;
+}
+
+void app_remove(const char *name)
+{
+    struct app_info_t info;
+    if (!app_info(name, &info) || !info.installed) {
+        return;
+    }
+
+    char filename[PATH_MAX];
+    snprintf(filename, sizeof(filename), "%s/app%d.json", APPDATA_DIR, info.slot_num);
+    unlink(filename);
+    snprintf(filename, sizeof(filename), "%s/app%d.icons", APPDATA_DIR, info.slot_num);
+    unlink(filename);
+
+    nvs_handle nvs;
+    ESP_ERROR_CHECK(nvs_open("nvs", NVS_READWRITE, &nvs));
+    char key[5];
+    snprintf(key, sizeof(key), "app%d", info.slot_num);
+    nvs_erase_key(nvs, key);
+    ESP_ERROR_CHECK(nvs_commit(nvs));
+    nvs_close(nvs);
+}
+
+void app_run(const char *name, bool upgrade)
+{
+    struct app_info_t info;
+
+    if (!app_info(name, &info)) {
+        return;
+    }
+
+    if (!info.installed || (upgrade && info.available && info.upgradable)) {
+        if (app_install(name, info.slot_num)) {
+            return;
+        }
+    }
+
+    /* update mru */
+    char mru[NUM_OTA_PARTITIONS + 1] = { 0 };
+    nvs_handle nvs;
+    ESP_ERROR_CHECK(nvs_open("nvs", NVS_READWRITE, &nvs));
+    size_t len = sizeof(mru);
+    nvs_get_str(nvs, "mru", mru, &len);
+    char *p = strchr(mru, '0' + info.slot_num);
+    len = strlen(mru);
+    if (p) {
+        memmove(p, p + 1, len - (p - mru));
+        mru[len - 1] = '0' + info.slot_num;
+    } else {
+        mru[len] = '0' + info.slot_num;
+    }
+    ESP_ERROR_CHECK(nvs_set_str(nvs, "mru", mru));
+    ESP_ERROR_CHECK(nvs_commit(nvs));
+    nvs_close(nvs);
+
+    const esp_partition_t *part = esp_partition_find_first(
+        ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_MIN + info.slot_num, NULL);
+
+    esp_ota_set_boot_partition(part);
     esp_restart();
 }
