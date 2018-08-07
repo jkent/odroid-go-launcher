@@ -259,7 +259,7 @@ bool app_info(const char *name, struct app_info_t *info)
 size_t app_enumerate(struct app_info_t **apps)
 {
     size_t count = 0;
-    struct app_info_t *info = *apps;
+    struct app_info_t *info = NULL;
 
     /* first find all apps in flash */
     nvs_handle nvs;

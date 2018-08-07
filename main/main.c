@@ -25,8 +25,8 @@
 
 void dump_app_info(void)
 {
-    struct app_info_t *apps = NULL;
-    size_t count = app_enumerate2(&apps);
+    struct app_info_t *apps;
+    size_t count = app_enumerate(&apps);
     printf("\n");
     for (int i = 0; i < count; i++) {
         printf("%s:\n    installed = %s\n    available = %s\n    upgradable = %s\n", apps[i].name, apps[i].installed ? "yes" : "no", apps[i].available ? "yes" : "no", apps[i].upgradable ? "yes" : "no");
