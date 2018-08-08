@@ -3,11 +3,11 @@ nvs,      data, nvs,     0x9000,  0x4000
 otadata,  data, ota,     0xd000,  0x2000
 phy_init, data, phy,     0xf000,  0x1000
 launcher, app,  ota_0,  0x10000,  1984K
-app0,     app,  ota_1,   ,         2M
-app1,     app,  ota_2,   ,         2M
-app2,     app,  ota_3,   ,         2M
-app3,     app,  ota_4,   ,         2M
-app4,     app,  ota_5,   ,         2M
-app5,     app,  ota_6,   ,         2M
+app1,     app,  ota_1,   ,         2M
+app2,     app,  ota_2,   ,         2M
+app3,     app,  ota_3,   ,         2M
+app4,     app,  ota_4,   ,         2M
+app5,     app,  ota_5,   ,         2M
+app6,     app,  ota_6,   ,         2M
 storage,  data, spiffs,  ,         2M
 
