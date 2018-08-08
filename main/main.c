@@ -17,6 +17,7 @@
 #include "app.h"
 #include "graphics.h"
 #include "menu.h"
+#include "menu_wifi.h"
 #include "tf.h"
 #include "OpenSans_Regular_11X12.h"
 #include "statusbar.h"

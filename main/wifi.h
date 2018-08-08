@@ -2,11 +2,10 @@
 
 #include <stdbool.h>
 
-#include "menu.h"
 
-
-bool wifi_connected;
 bool wifi_enabled;
+bool wifi_connected;
 
 void wifi_init(void);
-void wifi_menu_fn(struct menu_t *menu, int index, void *arg);
+void wifi_enable(void);
+void wifi_disable(void);

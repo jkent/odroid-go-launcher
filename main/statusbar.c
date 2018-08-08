@@ -7,6 +7,7 @@
 
 #include "OpenSans_Regular_11X12.h"
 #include "icons_16X16.h"
+#include "menu_wifi.h"
 #include "statusbar.h"
 #include "tf.h"
 #include "wifi.h"
