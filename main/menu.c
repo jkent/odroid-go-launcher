@@ -383,7 +383,7 @@ void menu_remove(struct menu_t *menu, int index)
     }
     assert(index < menu->item_count);
 
-    struct menu_item_t *item = &menu->items[menu->item_selected];
+    struct menu_item_t *item = &menu->items[index];
     switch (item->type) {
         case MENU_ITEM_TYPE_STRDUP:
             if (item->label) {
@@ -423,11 +423,28 @@ void menu_trigger_redraw(struct menu_t *menu)
     menu->redraw = true;
 }
 
+struct menu_t *menu_get_parent(struct menu_t *menu)
+{
+    return menu->parent;
+}
+
+int menu_get_selected(struct menu_t *menu)
+{
+    return menu->item_selected;
+}
+
+void menu_set_selected(struct menu_t *menu, int selected)
+{
+    assert(selected < menu->item_count);
+    menu->item_selected = selected;
+}
+
 void menu_clear(struct menu_t *menu)
 {
     while (menu->item_count > 0) {
         menu_remove(menu, -1);
     }
+    menu->item_selected = 0;
 }
 
 int menu_get_value(struct menu_t *menu, int index)
@@ -438,6 +455,9 @@ int menu_get_value(struct menu_t *menu, int index)
     assert(index < menu->item_count);
 
     struct menu_item_t *item = &menu->items[index];
+
+    assert(item->type == MENU_ITEM_TYPE_LIST);
+
     return item->value;
 }
 
@@ -449,6 +469,9 @@ void menu_set_value(struct menu_t *menu, int index, int value)
     assert(index < menu->item_count);
 
     struct menu_item_t *item = &menu->items[index];
+ 
+    assert(item->type == MENU_ITEM_TYPE_LIST);
+
     if (item->type == MENU_ITEM_TYPE_LIST) {
         assert(value >= 0 && value < item->list_size);
     }
@@ -467,7 +490,26 @@ int menu_get_list_size(struct menu_t *menu, int index)
     assert(index < menu->item_count);
 
     struct menu_item_t *item = &menu->items[index];
+
+    assert(item->type == MENU_ITEM_TYPE_LIST);
+
     return item->list_size;
+}
+
+const char *menu_get_label(struct menu_t *menu, int index) 
+{
+    if (index < 0) {
+        index = menu->item_count + index;
+    }
+    assert(index < menu->item_count);
+
+    struct menu_item_t *item = &menu->items[index];
+
+    if (item->type == MENU_ITEM_TYPE_LIST) {
+        return item->list[item->value];
+    } else {
+        return item->label;
+    }
 }
 
 void menu_list_cycle(struct menu_t *menu, int index, void *arg)

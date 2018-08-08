@@ -65,16 +65,19 @@ static char *app_json_fread(char *filename)
     if (fread(&header, sizeof(struct app_header_t), 1, f) != 1 ||
             header.magic != APP_HEADER_MAGIC ||
             header.version != APP_HEADER_VERSION) {
+        fclose(f);
         return NULL;
     }
 
     json = malloc(header.json_len + 1);
     if (!json) return NULL;
     if (fread(json, header.json_len, 1, f) != 1) {
+        fclose(f);
         free(json);
         return NULL;
     }
     json[header.json_len] = '\0';
+    fclose(f);
     return json;
 }
 
@@ -160,11 +163,12 @@ semver_done:
     }
 }
 
-static int app_get_slot(const char *name, bool *installed)
+int app_get_slot(const char *name, bool *installed)
 {
     int slot;
-
-    *installed = false;
+    if (installed) {
+        *installed = false;
+    }
 
     nvs_handle nvs;
     ESP_ERROR_CHECK(nvs_open("nvs", NVS_READONLY, &nvs));
@@ -177,7 +181,9 @@ static int app_get_slot(const char *name, bool *installed)
             continue;
         }
         if (strcmp(name, value) == 0) {
-            *installed = true;
+            if (installed) {
+                *installed = true;
+            }
             goto end;
         }
     }
@@ -197,7 +203,7 @@ end:
     return slot;
 }
 
-bool app_info(const char *name, struct app_info_t *info)
+void app_info(const char *name, struct app_info_t *info)
 {
     char filename[PATH_MAX];
 
@@ -215,14 +221,14 @@ bool app_info(const char *name, struct app_info_t *info)
         char *json = app_json_fread(filename);
         if (json == NULL) {
             info->available = false;
-            return true;
+            return;
         }
         char *sdcard_version;
         json_scanf(json, strlen(json), "{version: %Q}", &sdcard_version);
         free(json);
         if (sdcard_version == NULL) {
             info->available = false;
-            return true;
+            return;
         }
 
         /* then get the installed version */
@@ -231,7 +237,7 @@ bool app_info(const char *name, struct app_info_t *info)
         if (json == NULL) {
             free(sdcard_version);
             info->installed = false;
-            return true;
+            return;
         }
         char *installed_version;
         json_scanf(json, strlen(json), "{version: %Q}", &installed_version);
@@ -239,7 +245,7 @@ bool app_info(const char *name, struct app_info_t *info)
         if (installed_version == NULL) {
             free(sdcard_version);
             info->installed = false;
-            return true;
+            return;
         }
 
         /* and compare them */
@@ -247,19 +253,19 @@ bool app_info(const char *name, struct app_info_t *info)
             free(installed_version);
             free(sdcard_version);
             info->upgradable = true;
-            return true;
+            return;
         }
         free(installed_version);
         free(sdcard_version);
     }
 
-    return true;
+    return;
 }
 
-size_t app_enumerate(struct app_info_t **apps)
+struct app_info_t *app_enumerate(size_t *count)
 {
-    size_t count = 0;
     struct app_info_t *info = NULL;
+    *count = 0;
 
     /* first find all apps in flash */
     nvs_handle nvs;
@@ -274,9 +280,9 @@ size_t app_enumerate(struct app_info_t **apps)
             continue;
         }
 
-        info = realloc(info, sizeof(struct app_info_t) * (count + 1));
-        app_info(value, &info[count]);
-        count += 1;
+        info = realloc(info, sizeof(struct app_info_t) * (*count + 1));
+        app_info(value, &info[*count]);
+        *count += 1;
     }
 
     nvs_close(nvs);
@@ -297,27 +303,26 @@ size_t app_enumerate(struct app_info_t **apps)
         remove_end(entry.d_name, 4);
 
         int i;
-        for (i = 0; i < count; i++) {
+        for (i = 0; i < *count; i++) {
             if (strcmp(info[i].name, entry.d_name) == 0) {
                 break;
             }
         }
 
-        if (i < count) {
+        if (i < *count) {
             continue;
         }
 
-        info = realloc(info, sizeof(struct app_info_t) * (count + 1));
-        app_info(entry.d_name, &info[count]);
-        count += 1;
+        info = realloc(info, sizeof(struct app_info_t) * (*count + 1));
+        app_info(entry.d_name, &info[*count]);
+        *count += 1;
     }
 
     closedir(dir);
 
 sort:
-    qsort(info, count, sizeof(struct app_info_t), cmp_app_info);
-    *apps = info;
-    return count;
+    qsort(info, *count, sizeof(struct app_info_t), cmp_app_info);
+    return info;
 }
 
 bool app_install(const char *name, int slot)
@@ -448,10 +453,12 @@ error:
     return true;
 }
 
-void app_remove(const char *name)
+void app_uninstall(const char *name)
 {
     struct app_info_t info;
-    if (!app_info(name, &info) || !info.installed) {
+
+    app_info(name, &info);
+    if (!info.installed) {
         return;
     }
 
@@ -464,7 +471,6 @@ void app_remove(const char *name)
     snprintf(prefix, sizeof(prefix), "%s/app%d.", APPDATA_DIR, info.slot_num);
     if ((dir = opendir(APPDATA_DIR)) != NULL) {
         while (readdir_r(dir, &entry, &result) == 0 && result != NULL) {
-            printf("entry.d_name: %s\n", entry.d_name);
             if (strncmp(entry.d_name, filename, strlen(filename)) == 0) {
                 snprintf(filename, sizeof(filename), "%s/%s", APPDATA_DIR, entry.d_name);
                 unlink(filename);
@@ -486,10 +492,7 @@ void app_run(const char *name, bool upgrade)
 {
     struct app_info_t info;
 
-    if (!app_info(name, &info)) {
-        return;
-    }
-
+    app_info(name, &info);
     if (!info.installed || (upgrade && info.available && info.upgradable)) {
         if (app_install(name, info.slot_num)) {
             return;
