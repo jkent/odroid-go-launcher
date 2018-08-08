@@ -30,7 +30,8 @@ struct menu_t {
     int item_displayed;
     short item_height;
     short yshift;
-    bool dismissed;
+    bool close;
+    bool redraw;
     menu_task_t task_fn;
 };
 
@@ -186,7 +187,7 @@ void menu_showmodal(struct menu_t *menu)
     menu->parent = menu_top;
     menu_top = menu;
 
-    menu->dismissed = false;
+    menu->close = false;
 
     blit(menu->g, dst_rect, fb, menu->rect);
     menu_draw(menu);
@@ -242,7 +243,7 @@ void menu_showmodal(struct menu_t *menu)
         } else if (pressed & KEYPAD_MENU) {
             struct menu_t *m = menu;
             do {
-                m->dismissed = true;
+                m->close = true;
                 m = m->parent;
             } while (m);
         }
@@ -251,8 +252,13 @@ void menu_showmodal(struct menu_t *menu)
             menu->task_fn(menu);
         }
 
+        if (menu->redraw) {
+            menu_draw(menu);
+            menu->redraw = false;
+        }
+
         statusbar_update();
-    } while (!(pressed & KEYPAD_B) && !menu->dismissed);
+    } while (!(pressed & KEYPAD_B) && !menu->close);
 
     menu_hide(menu);
     menu_top = menu->parent;
@@ -407,9 +413,21 @@ void menu_remove(struct menu_t *menu, int index)
     }
 }
 
-void menu_dismiss(struct menu_t *menu)
+void menu_trigger_close(struct menu_t *menu)
 {
-    menu->dismissed = true;
+    menu->close = true;
+}
+
+void menu_trigger_redraw(struct menu_t *menu)
+{
+    menu->redraw = true;
+}
+
+void menu_clear(struct menu_t *menu)
+{
+    while (menu->item_count > 0) {
+        menu_remove(menu, -1);
+    }
 }
 
 int menu_get_value(struct menu_t *menu, int index)
