@@ -13,16 +13,14 @@
 #include "backlight.h"
 #include "keypad.h"
 #include "sdcard.h"
+#include "wifi.h"
 
 #include "app.h"
 #include "graphics.h"
-#include "menu.h"
-#include "menu_app.h"
-#include "menu_wifi.h"
 #include "tf.h"
 #include "OpenSans_Regular_11X12.h"
 #include "statusbar.h"
-#include "wifi.h"
+#include "ui_dialog.h"
 
 
 void app_main(void)
@@ -30,10 +28,10 @@ void app_main(void)
     display_init();
     backlight_init();
 
-    struct tf_t *tf = tf_new(&font_OpenSans_Regular_11X12, 240, TF_ALIGN_CENTER | TF_WORDWRAP);
+    tf_t *tf = tf_new(&font_OpenSans_Regular_11X12, 240, TF_ALIGN_CENTER | TF_WORDWRAP);
     const char *s;
-    struct tf_metrics_t m;
-    struct point_t p;
+    tf_metrics_t m;
+    point_t p;
 
     s = "Initializing...";
     m = tf_get_str_metrics(tf, s);
@@ -74,17 +72,15 @@ void app_main(void)
             statusbar_update();
         } while (!(pressed & KEYPAD_MENU));
 
-        struct rect_t r = {
-            .x = fb->width/2 - 240/2,
-            .y = fb->height/2 - 180/2,
+        rect_t r = {
+            .x = DISPLAY_WIDTH/2 - 240/2,
+            .y = DISPLAY_HEIGHT/2 - 180/2,
             .width = 240,
             .height = 180,
         };
-
-        struct menu_t *menu = menu_new(r, NULL);
-        menu_append_text(menu, "WiFi Settings", wifi_menu_fn, NULL);
-        menu_append_text(menu, "Manage Apps", app_menu_fn, NULL);
-        menu_showmodal(menu);
-        menu_free(menu);
+        
+        ui_dialog_t *d = ui_dialog_new(r, NULL);
+        ui_dialog_showmodal(d);
+        ui_dialog_destroy(d);
     }
 }

@@ -15,13 +15,13 @@ enum tf_flags_t {
 
 struct tf_font_t;
 
-struct tf_t {
+typedef struct {
     const struct tf_font_t *font;
     uint16_t color;
     short width;
     uint16_t flags;
-    struct rect_t clip;
-};
+    rect_t clip;
+} tf_t;
 
 struct tf_font_t {
    const unsigned char *p;
@@ -32,13 +32,13 @@ struct tf_font_t {
    const short *widths;
 };
 
-struct tf_metrics_t {
+typedef struct  {
     short width;
     short height;
-};
+} tf_metrics_t;
 
-struct tf_t *tf_new(const struct tf_font_t *font, short width, uint32_t flags);
-void tf_free(struct tf_t *tf);
-struct tf_metrics_t tf_get_str_metrics(struct tf_t *tf, const char *s);
-short tf_draw_glyph(struct gbuf_t *g, struct tf_t *tf, char c, struct point_t p);
-void tf_draw_str(struct gbuf_t *g, struct tf_t *tf, const char *s, struct point_t p);
+tf_t *tf_new(const struct tf_font_t *font, short width, uint32_t flags);
+void tf_free(tf_t *tf);
+tf_metrics_t tf_get_str_metrics(tf_t *tf, const char *s);
+short tf_draw_glyph(gbuf_t *g, tf_t *tf, char c, point_t p);
+void tf_draw_str(gbuf_t *g, tf_t *tf, const char *s, point_t p);

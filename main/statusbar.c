@@ -7,7 +7,6 @@
 
 #include "OpenSans_Regular_11X12.h"
 #include "icons_16X16.h"
-#include "menu_wifi.h"
 #include "statusbar.h"
 #include "tf.h"
 #include "wifi.h"
@@ -15,15 +14,15 @@
 
 #define STATUSBAR_HEIGHT (16)
 
-struct stateinfo_t {
+typedef struct {
     bool sdcard_present;
     bool wifi_enabled;
     int wifi_bars;
-};
+} stateinfo_t;
 
-static struct tf_t *s_icons;
-static struct rect_t s_rect;
-static struct stateinfo_t last_state;
+static tf_t *s_icons;
+static rect_t s_rect;
+static stateinfo_t last_state;
 
 
 static int rssi_to_bars(int rssi, int levels)
@@ -57,20 +56,20 @@ void statusbar_update(void)
         wifi_bars = rssi_to_bars(record.rssi, 5);
     }
 
-    struct stateinfo_t state = {
+    stateinfo_t state = {
         .sdcard_present = sdcard_present(),
         .wifi_enabled = wifi_enabled,
         .wifi_bars = wifi_bars,
     };
 
-    if (memcmp(&last_state, &state, sizeof(struct stateinfo_t)) == 0) {
+    if (memcmp(&last_state, &state, sizeof(stateinfo_t)) == 0) {
         return;
     }
 
-    memcpy(&last_state, &state, sizeof(struct stateinfo_t));
+    memcpy(&last_state, &state, sizeof(stateinfo_t));
     memset(fb->data, 0, DISPLAY_WIDTH * STATUSBAR_HEIGHT * fb->bytes_per_pixel);
 
-    struct point_t p = {
+    point_t p = {
         .x = fb->width - 16,
         .y = 0,
     };
@@ -87,5 +86,5 @@ void statusbar_update(void)
     tf_draw_glyph(fb, s_icons, FONT_ICON_SPEAKER3, p);
     p.x -= 16;
 
-    display_update_rect(s_rect.x, s_rect.y, s_rect.width, s_rect.height);
+    display_update_rect(s_rect);
 }

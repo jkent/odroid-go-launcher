@@ -5,17 +5,17 @@
 #include "tf.h"
 
 
-struct tf_iterinfo_t {
+typedef struct {
     const char *s;
     size_t len;
     short width;
     bool ellipsis;
-};
+} tf_iterinfo_t;
 
 
-struct tf_t *tf_new(const struct tf_font_t *font, short width, uint32_t flags)
+tf_t *tf_new(const struct tf_font_t *font, short width, uint32_t flags)
 {
-    struct tf_t *tf = calloc(1, sizeof(struct tf_t));
+    tf_t *tf = calloc(1, sizeof(tf_t));
     assert(tf != NULL);
 
     tf->font = font;
@@ -25,15 +25,15 @@ struct tf_t *tf_new(const struct tf_font_t *font, short width, uint32_t flags)
     return tf;
 }
 
-void tf_free(struct tf_t *tf)
+void tf_free(tf_t *tf)
 {
     free(tf);
 }
 
-static struct tf_iterinfo_t tf_iter_lines(struct tf_t *tf, const char *start)
+static tf_iterinfo_t tf_iter_lines(tf_t *tf, const char *start)
 {
     static const char *s = NULL;
-    struct tf_iterinfo_t ii = { 0 };
+    tf_iterinfo_t ii = { 0 };
     short width = 0;
     short ellipsis_width = 0;
 
@@ -103,10 +103,10 @@ static struct tf_iterinfo_t tf_iter_lines(struct tf_t *tf, const char *start)
     return ii;
 }
 
-struct tf_metrics_t tf_get_str_metrics(struct tf_t *tf, const char *s)
+tf_metrics_t tf_get_str_metrics(tf_t *tf, const char *s)
 {
-    struct tf_metrics_t m = { 0 };
-    struct tf_iterinfo_t ii = tf_iter_lines(tf, s);
+    tf_metrics_t m = { 0 };
+    tf_iterinfo_t ii = tf_iter_lines(tf, s);
 
     while (ii.len) {
         m.height += tf->font->height;
@@ -119,7 +119,7 @@ struct tf_metrics_t tf_get_str_metrics(struct tf_t *tf, const char *s)
     return m;
 }
 
-short tf_draw_glyph(struct gbuf_t *g, struct tf_t *tf, char c, struct point_t p)
+short tf_draw_glyph(gbuf_t *g, tf_t *tf, char c, point_t p)
 {
     assert(c >= tf->font->first);
     assert(c <= tf->font->last);
@@ -168,12 +168,12 @@ short tf_draw_glyph(struct gbuf_t *g, struct tf_t *tf, char c, struct point_t p)
     return width;
 }
 
-void tf_draw_str(struct gbuf_t *g, struct tf_t *tf, const char *s, struct point_t p)
+void tf_draw_str(gbuf_t *g, tf_t *tf, const char *s, point_t p)
 {
     short xoff = 0;
     short yoff = 0;
 
-    struct tf_iterinfo_t ii = tf_iter_lines(tf, s);
+    tf_iterinfo_t ii = tf_iter_lines(tf, s);
     int line = 1;
     while (true) {
         short ystart = p.y + yoff < 0 ? -(p.y + yoff) : yoff;
@@ -194,7 +194,7 @@ void tf_draw_str(struct gbuf_t *g, struct tf_t *tf, const char *s, struct point_
         }
 
         for (int i = 0; i < ii.len; i++) {
-            struct point_t gp = {p.x + xoff, p.y + yoff};
+            point_t gp = {p.x + xoff, p.y + yoff};
             xoff += tf_draw_glyph(g, tf, ii.s[i], gp);
             if (tf->clip.width > 0 && xoff + p.x > tf->clip.x + tf->clip.width) {
                 break;
@@ -202,7 +202,7 @@ void tf_draw_str(struct gbuf_t *g, struct tf_t *tf, const char *s, struct point_
         }
 
         if (ii.ellipsis) {
-            struct point_t gp = {p.x + xoff, p.y + yoff};
+            point_t gp = {p.x + xoff, p.y + yoff};
             xoff += tf_draw_glyph(g, tf, '.', gp);
             gp.x = p.x + xoff;
             xoff += tf_draw_glyph(g, tf, '.', gp);
