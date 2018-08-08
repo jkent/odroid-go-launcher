@@ -167,7 +167,7 @@ static int app_get_slot(const char *name, bool *installed)
     *installed = false;
 
     nvs_handle nvs;
-    nvs_open("nvs", NVS_READONLY, &nvs);
+    ESP_ERROR_CHECK(nvs_open("nvs", NVS_READONLY, &nvs));
 
     for (slot = 1; slot <= NUM_OTA_PARTITIONS; slot++) {
         char key[5], value[256];
@@ -263,7 +263,7 @@ size_t app_enumerate(struct app_info_t **apps)
 
     /* first find all apps in flash */
     nvs_handle nvs;
-    nvs_open("nvs", NVS_READONLY, &nvs);
+    ESP_ERROR_CHECK(nvs_open("nvs", NVS_READONLY, &nvs));
 
     for (int i = 0; i < NUM_OTA_PARTITIONS; i++) {
         char key[5], value[256];
