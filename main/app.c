@@ -283,21 +283,22 @@ size_t app_enumerate(struct app_info_t **apps)
 
     /* next list all files in the apps directory */
     DIR *dir;
-    struct dirent *dent;
+    struct dirent entry;
+    struct dirent *result;
 
     if ((dir = opendir(APP_DIR)) == NULL) {
         goto sort;
     }
 
-    while ((dent = readdir(dir)) != NULL) {
-        if (dent->d_type != DT_REG || !endswith(dent->d_name, ".app")) {
+    while (readdir_r(dir, &entry, &result) == 0 && result != NULL) {
+        if (entry.d_type != DT_REG || !endswith(entry.d_name, ".app")) {
             continue;
         }
-        remove_end(dent->d_name, 4);
+        remove_end(entry.d_name, 4);
 
         int i;
         for (i = 0; i < count; i++) {
-            if (strcmp(info[i].name, dent->d_name) == 0) {
+            if (strcmp(info[i].name, entry.d_name) == 0) {
                 break;
             }
         }
@@ -307,7 +308,7 @@ size_t app_enumerate(struct app_info_t **apps)
         }
 
         info = realloc(info, sizeof(struct app_info_t) * (count + 1));
-        app_info(dent->d_name, &info[count]);
+        app_info(entry.d_name, &info[count]);
         count += 1;
     }
 
@@ -454,11 +455,23 @@ void app_remove(const char *name)
         return;
     }
 
+    DIR *dir;
+    struct dirent entry;
+    struct dirent *result;
     char filename[PATH_MAX];
-    snprintf(filename, sizeof(filename), "%s/app%d.json", APPDATA_DIR, info.slot_num);
-    unlink(filename);
-    snprintf(filename, sizeof(filename), "%s/app%d.icons", APPDATA_DIR, info.slot_num);
-    unlink(filename);
+    char prefix[64];
+
+    snprintf(prefix, sizeof(prefix), "%s/app%d.", APPDATA_DIR, info.slot_num);
+    if ((dir = opendir(APPDATA_DIR)) != NULL) {
+        while (readdir_r(dir, &entry, &result) == 0 && result != NULL) {
+            printf("entry.d_name: %s\n", entry.d_name);
+            if (strncmp(entry.d_name, filename, strlen(filename)) == 0) {
+                snprintf(filename, sizeof(filename), "%s/%s", APPDATA_DIR, entry.d_name);
+                unlink(filename);
+            }
+        }
+    }
+    closedir(dir);
 
     nvs_handle nvs;
     ESP_ERROR_CHECK(nvs_open("nvs", NVS_READWRITE, &nvs));
