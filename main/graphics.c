@@ -79,43 +79,17 @@ void blit(struct gbuf_t *dst, struct rect_t dst_rect, struct gbuf_t *src, struct
     if (src->bytes_per_pixel == 2 && dst->bytes_per_pixel == 2) {
         if (src->endian == dst->endian) {
             for (short yoff = 0; yoff < dst_rect.height; yoff++) {
-                uint16_t *dst_addr = ((uint16_t *)dst->pixel_data) + (dst_rect.y + yoff) * dst->width + dst_rect.x;
-                uint16_t *src_addr = ((uint16_t *)src->pixel_data) + (src_rect.y + yoff) * src->width + src_rect.x;
+                uint16_t *dst_addr = ((uint16_t *)dst->data) + (dst_rect.y + yoff) * dst->width + dst_rect.x;
+                uint16_t *src_addr = ((uint16_t *)src->data) + (src_rect.y + yoff) * src->width + src_rect.x;
                 memcpy(dst_addr, src_addr, dst_rect.width * dst->bytes_per_pixel);
             }
         } else {
             for (short yoff = 0; yoff < dst_rect.height; yoff++) {
-                uint16_t *dst_addr = ((uint16_t *)dst->pixel_data) + (dst_rect.y + yoff) * dst->width + dst_rect.x;
-                uint16_t *src_addr = ((uint16_t *)src->pixel_data) + (src_rect.y + yoff) * src->width + src_rect.x;
+                uint16_t *dst_addr = ((uint16_t *)dst->data) + (dst_rect.y + yoff) * dst->width + dst_rect.x;
+                uint16_t *src_addr = ((uint16_t *)src->data) + (src_rect.y + yoff) * src->width + src_rect.x;
                 for (short xoff = 0; xoff < dst_rect.width; xoff++) {
                     *(dst_addr + xoff) = *(src_addr + xoff) << 8 | *(src_addr + xoff) >> 8;
                 }
-            }
-        }
-    }
-}
-
-void draw_image(struct gbuf_t *dst, struct image_t *src, short x, short y)
-{
-    short xstart = x < 0 ? -x : 0;
-    short xend = x + src->width > dst->width ? dst->width - x : src->width;
-    short ystart = y < 0 ? -y : 0;
-    short yend = y + src->height > dst->height ? dst->height - y : src->height;
-
-    if (src->bytes_per_pixel == 2 && dst->bytes_per_pixel == 2) {
-        if (dst->endian == BIG_ENDIAN) {
-            for (short yoff = ystart; yoff < yend; yoff++) {
-                uint16_t *dst_addr  = ((uint16_t *)dst->pixel_data) + (y + yoff) * dst->width + x;
-                uint16_t *src_addr = ((uint16_t *)src->pixel_data) + yoff * src->width;
-                for (short xoff = xstart; xoff < xend; xoff++) {
-                    *(dst_addr + xoff) = *(src_addr + xoff) << 8 | *(src_addr + xoff) >> 8;
-                }
-            }
-        } else if (dst->endian == LITTLE_ENDIAN) {
-            for (short yoff = ystart; yoff < yend; yoff++) {
-                uint16_t *dst_addr  = ((uint16_t *)dst->pixel_data) + (y + yoff) * dst->width + x;
-                uint16_t *src_addr = ((uint16_t *)src->pixel_data) + yoff * src->width;
-                memcpy(dst_addr, src_addr, (xend - xstart) * dst->bytes_per_pixel);
             }
         }
     }
@@ -136,24 +110,24 @@ void draw_rectangle(struct gbuf_t *dst, struct rect_t rect, enum draw_type_t dra
 
     if (draw_type == DRAW_TYPE_FILL) {
         for (short yoff = 0; yoff < rect.height; yoff++) {
-            uint16_t *dst_addr  = ((uint16_t *)dst->pixel_data) + (rect.y + yoff) * dst->width + rect.x;
+            uint16_t *dst_addr  = ((uint16_t *)dst->data) + (rect.y + yoff) * dst->width + rect.x;
             for (short xoff = 0; xoff < rect.width; xoff++) {
                 *(dst_addr + xoff) = color;
             }
         }
     } else if (draw_type == DRAW_TYPE_OUTLINE) {
-        uint16_t *dst_addr = ((uint16_t *)dst->pixel_data) + rect.y * dst->width + rect.x;
+        uint16_t *dst_addr = ((uint16_t *)dst->data) + rect.y * dst->width + rect.x;
         for (short xoff = 0; xoff < rect.width; xoff++) {
             *(dst_addr + xoff) = color;
         }
 
         for (short yoff = 1; yoff < rect.height - 1; yoff++) {
-            dst_addr = ((uint16_t *)dst->pixel_data) + (rect.y + yoff) * dst->width + rect.x;
+            dst_addr = ((uint16_t *)dst->data) + (rect.y + yoff) * dst->width + rect.x;
             *dst_addr = color;
             *(dst_addr + rect.width - 1) = color;
         }
 
-        dst_addr = ((uint16_t *)dst->pixel_data) + (rect.y + rect.height - 1) * dst->width + rect.x;
+        dst_addr = ((uint16_t *)dst->data) + (rect.y + rect.height - 1) * dst->width + rect.x;
         for (short xoff = 0; xoff < rect.width; xoff++) {
             *(dst_addr + xoff) = color;
         }

@@ -157,7 +157,7 @@ short tf_draw_glyph(struct gbuf_t *g, struct tf_t *tf, char c, struct point_t p)
     const unsigned char *glyph = tf->font->p + ((tf->font->width + 7) / 8) * tf->font->height * (c - tf->font->first);
 
     for (short yoff = ystart; yoff < yend; yoff++) {
-        uint16_t *pixel = ((uint16_t *)g->pixel_data) + (p.y + yoff) * g->width + p.x;
+        uint16_t *pixel = ((uint16_t *)g->data) + (p.y + yoff) * g->width + p.x;
         for (short xoff = xstart; xoff < xend; xoff++) {
             if (glyph[yoff * ((tf->font->width + 7) / 8) + (xoff / 8)] & (1 << (xoff % 8))) {
                 *(pixel + xoff) = color;

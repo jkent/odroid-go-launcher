@@ -67,7 +67,7 @@ void statusbar_update(void)
     }
 
     memcpy(&last_state, &state, sizeof(struct stateinfo_t));
-    memset(fb->pixel_data, 0, DISPLAY_WIDTH * STATUSBAR_HEIGHT * fb->bytes_per_pixel);
+    memset(fb->data, 0, DISPLAY_WIDTH * STATUSBAR_HEIGHT * fb->bytes_per_pixel);
 
     struct point_t p = {
         .x = fb->width - 16,
@@ -86,5 +86,5 @@ void statusbar_update(void)
     tf_draw_glyph(fb, s_icons, FONT_ICON_SPEAKER3, p);
     p.x -= 16;
 
-    display_update_rect(s_rect);
+    display_update_rect(s_rect.x, s_rect.y, s_rect.width, s_rect.height);
 }

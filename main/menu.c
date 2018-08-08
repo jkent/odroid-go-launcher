@@ -168,7 +168,7 @@ void menu_draw(struct menu_t *menu)
         }
     }
 
-    display_update_rect(menu->rect);
+    display_update_rect(menu->rect.x, menu->rect.y, menu->rect.width, menu->rect.height);
 }
 
 static void menu_hide(struct menu_t *menu)
@@ -176,7 +176,7 @@ static void menu_hide(struct menu_t *menu)
     struct rect_t src_rect = {0, 0, menu->rect.width, menu->rect.height};
 
     blit(fb, menu->rect, menu->g, src_rect);
-    display_update_rect(menu->rect);
+    display_update_rect(menu->rect.x, menu->rect.y, menu->rect.width, menu->rect.height);
 }
 
 void menu_showmodal(struct menu_t *menu)

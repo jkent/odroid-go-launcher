@@ -72,9 +72,9 @@ void app_main(void)
 
     s = "Press Menu button for the menu, A to boot the hello-world app or B to remove the hello-world app.";
     m = tf_get_str_metrics(tf, s);
-    p.x = DISPLAY_WIDTH/2 - tf->width/2;
-    p.y = DISPLAY_HEIGHT/2 - m.height/2;
-    memset(fb->pixel_data + fb->width * 16 * fb->bytes_per_pixel, 0, fb->width * (fb->height - 32) * fb->bytes_per_pixel);
+    p.x = fb->width/2 - tf->width/2;
+    p.y = fb->height/2 - m.height/2;
+    memset(fb->data + fb->width * 16 * fb->bytes_per_pixel, 0, fb->width * (fb->height - 32) * fb->bytes_per_pixel);
     tf_draw_str(fb, tf, s, p);
     display_update();
 
@@ -98,8 +98,8 @@ void app_main(void)
         }
 
         struct rect_t r = {
-            .x = DISPLAY_WIDTH/2 - 240/2,
-            .y = DISPLAY_HEIGHT/2 - 180/2,
+            .x = fb->width/2 - 240/2,
+            .y = fb->height/2 - 180/2,
             .width = 240,
             .height = 180,
         };
@@ -112,9 +112,9 @@ void app_main(void)
 
     s = "Loading...";
     m = tf_get_str_metrics(tf, s);
-    p.x = DISPLAY_WIDTH/2 - tf->width/2;
-    p.y = DISPLAY_HEIGHT/2 - m.height/2;
-    memset(fb->pixel_data + fb->width * 16 * fb->bytes_per_pixel , 0, fb->width * (fb->height - 32) * fb->bytes_per_pixel);
+    p.x = fb->width/2 - tf->width/2;
+    p.y = fb->height/2 - m.height/2;
+    memset(fb->data + fb->width * 16 * fb->bytes_per_pixel, 0, fb->width * (fb->height - 32) * fb->bytes_per_pixel);
     tf_draw_str(fb, tf, s, p);
     display_update();
 
@@ -122,9 +122,9 @@ void app_main(void)
 
     s = "App not found.";
     m = tf_get_str_metrics(tf, s);
-    p.x = DISPLAY_WIDTH/2 - tf->width/2;
-    p.y = DISPLAY_HEIGHT/2 - m.height/2;
-    memset(fb->pixel_data + fb->width * 16 * fb->bytes_per_pixel , 0, fb->width * (fb->height - 32) * fb->bytes_per_pixel);
+    p.x = fb->width/2 - tf->width/2;
+    p.y = fb->height/2 - m.height/2;
+    memset(fb->data + fb->width * 16 * fb->bytes_per_pixel, 0, fb->width * (fb->height - 32) * fb->bytes_per_pixel);
     tf_draw_str(fb, tf, s, p);
     display_update();
 }
