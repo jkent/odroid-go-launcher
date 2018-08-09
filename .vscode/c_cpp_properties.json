@@ -5,7 +5,11 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "${workspaceFolder}/build/include",
+                "${workspaceFolder}/main/include",
                 "${workspaceFolder}/components/frozen/frozen",
+                "${workspaceFolder}/components/graphics",
+                "${workspaceFolder}/components/hardware/src",
+                "${workspaceFolder}/components/ui",
                 "${IDF_PATH}/components/app_trace/include",
                 "${IDF_PATH}/components/app_update/include",
                 "${IDF_PATH}/components/aws_iot/include",

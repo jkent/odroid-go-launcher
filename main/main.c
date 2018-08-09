@@ -16,11 +16,11 @@
 #include "wifi.h"
 
 #include "app.h"
+#include "dialog.h"
 #include "graphics.h"
 #include "tf.h"
 #include "OpenSans_Regular_11X12.h"
 #include "statusbar.h"
-#include "ui_dialog.h"
 
 
 void app_main(void)
@@ -79,8 +79,15 @@ void app_main(void)
             .height = 180,
         };
         
-        ui_dialog_t *d = ui_dialog_new(r, NULL);
-        ui_dialog_showmodal(d);
-        ui_dialog_destroy(d);
+        dialog_t *d = dialog_new(r, "This is a title");
+        rect_t lr = {
+            .x = 0,
+            .y = 0,
+            .width = 200,
+            .height = 20,
+        };
+        dialog_append_control(d, (control_t *)control_button_new(d, lr, "A label", NULL));
+        dialog_showmodal(d);
+        dialog_destroy(d);
     }
 }
