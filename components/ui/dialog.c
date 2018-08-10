@@ -1,3 +1,4 @@
+#include <math.h>
 #include <string.h>
 
 #include "freertos/FreeRTOS.h"
@@ -39,8 +40,8 @@ void ui_dialog_draw(dialog_t *d)
     d->cr.width = d->r.width - 4;
     d->cr.height = d->r.height - 4;
 
-    draw_rectangle(fb, d->r, DRAW_TYPE_FILL, 0x0000);
-    draw_rectangle(fb, d->r, DRAW_TYPE_OUTLINE, 0xFFFF);
+    fill_rectangle(fb, d->r, 0x0000);
+    draw_rectangle(fb, d->r, DRAW_STYLE_SOLID, 0xFFFF);
 
     if (d->title) {
         tf_t *tf = tf_new(&font_OpenSans_Regular_11X12, d->cr.width, TF_ALIGN_CENTER | TF_ELIDE);
@@ -49,19 +50,19 @@ void ui_dialog_draw(dialog_t *d)
             .x = d->r.x,
             .y = d->r.y,
             .width = d->r.width,
-            .height = m.height + 4,
+            .height = m.height + 6,
         };
-        draw_rectangle(fb, r, DRAW_TYPE_FILL, 0x001F);
-        draw_rectangle(fb, r, DRAW_TYPE_OUTLINE, 0xFFFF);
+        fill_rectangle(fb, r, 0x001F);
+        draw_rectangle(fb, r, DRAW_STYLE_SOLID, 0xFFFF);
 
         point_t p = {
             .x = d->r.x + 2,
-            .y = d->r.y + 2,
+            .y = d->r.y + 3,
         };
         tf_draw_str(fb, tf, d->title, p);
 
-        d->cr.y += m.height + 3;
-        d->cr.height -= m.height + 3;
+        d->cr.y += m.height + 5;
+        d->cr.height -= m.height + 5;
     }
 }
 
@@ -82,12 +83,14 @@ void dialog_showmodal(dialog_t *d)
 
     for (int i = 0; i < d->num_controls; i++) {
         control_t *control = d->controls[i];
+        if (!d->active && control->type != CONTROL_LABEL) {
+            d->active = control;
+        }
         control->draw(control);
         control->dirty = false;
     }
 
-    //display_update_rect(d->r);
-    display_update();
+    display_update_rect(d->r);
 
     uint16_t keys = 0, changes = 0, pressed;
     do {
@@ -95,6 +98,40 @@ void dialog_showmodal(dialog_t *d)
         keys = keypad_debounce(keypad_sample(), &changes);
         pressed = keys & changes;
         statusbar_update();
+
+        control_t *new_active = NULL;
+        if (pressed & KEYPAD_UP) {
+            new_active = dialog_find_control(d, DIRECTION_UP);
+        } else if (pressed & KEYPAD_RIGHT) {
+            new_active = dialog_find_control(d, DIRECTION_RIGHT);
+        } else if (pressed & KEYPAD_DOWN) {
+            new_active = dialog_find_control(d, DIRECTION_DOWN);
+        } else if (pressed & KEYPAD_LEFT) {
+            new_active = dialog_find_control(d, DIRECTION_LEFT);
+        }
+
+        if (new_active) {
+            control_t *old_active = d->active;
+            d->active = new_active;
+            old_active->draw(old_active);
+            new_active->draw(new_active);
+        }
+
+        if (pressed & KEYPAD_A && d->active->onselect) {
+            d->active->onselect(d->active);
+        }
+
+        bool dirty = false;
+        for (int i = 0; i < d->num_controls; i++) {
+            control_t *control = d->controls[i];
+            if (control->dirty) {
+                dirty = true;
+                control->dirty = false;
+            }
+        }
+        if (dirty) {
+            display_update_rect(d->r);
+        }
     } while (!(pressed & KEYPAD_B));
 
     blit(fb, d->r, d->g, r);
@@ -140,4 +177,41 @@ control_t *dialog_remove_control(dialog_t *d, int index)
     memmove(&d->controls[index], &d->controls[index + 1], sizeof(struct control_t *) * (d->num_controls - index - 1));
     control->d = NULL;
     return control;
+}
+
+control_t *dialog_find_control(dialog_t *d, direction_t dir)
+{
+    control_t *active = d->active;
+    control_t *closest = NULL;
+    float closest_distance = INFINITY;
+
+    if (!active) {
+        return NULL;
+    }
+
+    short active_cx = active->r.x + active->r.width / 2;
+    short active_cy = active->r.y + active->r.height / 2;
+
+    for (size_t i = 0; i < d->num_controls; i++) {
+        control_t *control = d->controls[i];
+        if (control == active || control->type == CONTROL_LABEL) {
+            continue;
+        }
+        short control_cx = control->r.x + control->r.width / 2;
+        short control_cy = control->r.y + control->r.height /2;
+
+        if ((dir == DIRECTION_LEFT  && control->r.x + control->r.width - 1 < active->r.x) ||
+            (dir == DIRECTION_RIGHT && control->r.x > active->r.x + active->r.width - 1) ||
+            (dir == DIRECTION_UP    && control->r.y + control->r.height - 1 < active->r.y) ||
+            (dir == DIRECTION_DOWN  && control->r.y > active->r.y + active->r.height - 1)) {
+            short dx = abs(active_cx - control_cx);
+            short dy = abs(active_cy - control_cy);
+            float distance = sqrtf(dx * dx + dy * dy);
+            if (closest == NULL || distance < closest_distance) {
+                closest = control;
+                closest_distance = distance;
+            }
+        }
+    }
+    return closest;
 }

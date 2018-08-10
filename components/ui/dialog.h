@@ -10,6 +10,13 @@
 
 typedef struct control_t control_t;
 
+typedef enum direction_t {
+    DIRECTION_UP,
+    DIRECTION_DOWN,
+    DIRECTION_LEFT,
+    DIRECTION_RIGHT,
+} direction_t;
+
 typedef struct dialog_t {
     gbuf_t *g;
     rect_t r;
@@ -19,6 +26,7 @@ typedef struct dialog_t {
     bool visible;
     control_t *controls[MAX_CONTROLS];
     int num_controls;
+    control_t *active;
 } dialog_t;
 
 dialog_t *dialog_new(rect_t r, const char *title);
@@ -26,7 +34,7 @@ void dialog_destroy(dialog_t *d);
 void dialog_draw(dialog_t *d);
 void dialog_showmodal(dialog_t *d);
 void dialog_hide(dialog_t *d);
-
 void dialog_insert_control(dialog_t *d, int index, control_t *control);
 void dialog_append_control(dialog_t *d, control_t *control);
 control_t *dialog_remove_control(dialog_t *d, int index);
+control_t *dialog_find_control(dialog_t *d, direction_t dir);

@@ -12,10 +12,12 @@
 #include "rect.h"
 
 
-enum draw_type_t {
-    DRAW_TYPE_FILL = 0,
-    DRAW_TYPE_OUTLINE
-};
+typedef enum draw_style_t {
+    DRAW_STYLE_SOLID,
+    DRAW_STYLE_DOTTED,
+} draw_style_t;
 
 void blit(gbuf_t *dst, rect_t dst_rect, gbuf_t *src, rect_t src_rect);
-void draw_rectangle(gbuf_t *dst, rect_t rect, enum draw_type_t draw_type, uint16_t color);
+void draw_line(gbuf_t *g, point_t start, point_t end, draw_style_t style, uint16_t color);
+void draw_rectangle(gbuf_t *g, rect_t r, enum draw_style_t style, uint16_t color);
+void fill_rectangle(gbuf_t *g, rect_t rect, uint16_t color);

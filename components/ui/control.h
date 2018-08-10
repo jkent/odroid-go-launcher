@@ -53,8 +53,8 @@ typedef struct {
     bool dirty;
     control_draw_t draw;
     control_onselect_t onselect;
-    char *value;
-    size_t max_len;
+    char *text;
+    size_t text_len;
     size_t len;
     size_t cursor;
 } control_edit_t;
@@ -73,3 +73,7 @@ control_label_t *control_label_new(dialog_t *d, rect_t r, const char *text);
 void control_label_delete(control_label_t *label);
 control_button_t *control_button_new(dialog_t *d, rect_t r, const char *text, control_onselect_t onselect);
 void control_button_delete(control_button_t *button);
+control_edit_t *control_edit_new(dialog_t *d, rect_t r, const char *text, size_t text_len);
+void control_edit_delete(control_edit_t *button);
+control_edit_t *control_edit_new(dialog_t *d, rect_t r, const char *text, size_t text_len);
+void control_edit_delete(control_edit_t *edit);

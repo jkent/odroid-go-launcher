@@ -10,7 +10,7 @@
 static void draw(control_t *control)
 {
     control_label_t *label = (control_label_t *)control;
-    
+
     tf_t *tf = tf_new(&font_OpenSans_Regular_11X12, label->r.width, TF_ELIDE);
     tf->clip = label->r;
     tf->clip.x += label->d->cr.x;
