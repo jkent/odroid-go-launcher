@@ -5,17 +5,17 @@
 #include "display.h"
 #include "gbuf.h"
 
-#include "dialog.h"
 #include "OpenSans_Regular_11X12.h"
 #include "statusbar.h"
 #include "tf.h"
+#include "ui_dialog.h"
 
 
-static dialog_t *top = NULL;
+static ui_dialog_t *top = NULL;
 
-dialog_t *dialog_new(dialog_t *parent, rect_t r, const char *title)
+ui_dialog_t *ui_dialog_new(ui_dialog_t *parent, rect_t r, const char *title)
 {
-    dialog_t *d = calloc(1, sizeof(dialog_t));
+    ui_dialog_t *d = calloc(1, sizeof(ui_dialog_t));
     d->parent = parent;
     d->r = r;
     d->g = gbuf_new(r.width, r.height, fb->bytes_per_pixel, fb->endian);
@@ -28,13 +28,19 @@ dialog_t *dialog_new(dialog_t *parent, rect_t r, const char *title)
     return d;
 }
 
-void dialog_destroy(dialog_t *d)
+void ui_dialog_destroy(ui_dialog_t *d)
 {
+    for (int i = 0; i < d->controls_size; i++) {
+        ui_control_t *control = d->controls[i];
+        if (control != NULL && control->free) {
+            control->free(control);
+        }
+    }
     gbuf_free(d->g);
     free(d);
 }
 
-void ui_dialog_draw(dialog_t *d)
+void ui_dialog_draw(ui_dialog_t *d)
 {
     assert(d->visible);
 
@@ -69,7 +75,7 @@ void ui_dialog_draw(dialog_t *d)
     }
 }
 
-void dialog_showmodal(dialog_t *d)
+void ui_dialog_showmodal(ui_dialog_t *d)
 {
     d->hide = false;
 
@@ -88,8 +94,11 @@ void dialog_showmodal(dialog_t *d)
     d->parent = top;
     top = d;
 
-    for (int i = 0; i < d->num_controls; i++) {
-        control_t *control = d->controls[i];
+    for (int i = 0; i < d->controls_size; i++) {
+        ui_control_t *control = d->controls[i];
+        if (control == NULL) {
+            continue;
+        }
         if (!d->active && control->type != CONTROL_LABEL) {
             d->active = control;
         }
@@ -103,22 +112,22 @@ void dialog_showmodal(dialog_t *d)
     while (!d->hide) {
         if (keypad_queue_receive(d->keypad, &keys, 250 / portTICK_RATE_MS)) {
             if (keys.pressed & KEYPAD_MENU) {
-                dialog_hide_all();
+                ui_dialog_unwind();
             }
 
-            control_t *new_active = NULL;
+            ui_control_t *new_active = NULL;
             if (keys.pressed & KEYPAD_UP) {
-                new_active = dialog_find_control(d, DIRECTION_UP);
+                new_active = ui_dialog_find_control(d, DIRECTION_UP);
             } else if (keys.pressed & KEYPAD_RIGHT) {
-                new_active = dialog_find_control(d, DIRECTION_RIGHT);
+                new_active = ui_dialog_find_control(d, DIRECTION_RIGHT);
             } else if (keys.pressed & KEYPAD_DOWN) {
-                new_active = dialog_find_control(d, DIRECTION_DOWN);
+                new_active = ui_dialog_find_control(d, DIRECTION_DOWN);
             } else if (keys.pressed & KEYPAD_LEFT) {
-                new_active = dialog_find_control(d, DIRECTION_LEFT);
+                new_active = ui_dialog_find_control(d, DIRECTION_LEFT);
             }
 
             if (new_active) {
-                control_t *old_active = d->active;
+                ui_control_t *old_active = d->active;
                 d->active = new_active;
                 old_active->draw(old_active);
                 new_active->draw(new_active);
@@ -133,8 +142,11 @@ void dialog_showmodal(dialog_t *d)
             }
 
             bool dirty = false;
-            for (int i = 0; i < d->num_controls; i++) {
-                control_t *control = d->controls[i];
+            for (int i = 0; i < d->controls_size; i++) {
+                ui_control_t *control = d->controls[i];
+                if (control == NULL) {
+                    continue;
+                }
                 if (control->dirty) {
                     dirty = true;
                     control->dirty = false;
@@ -154,58 +166,39 @@ void dialog_showmodal(dialog_t *d)
     d->visible = false;
 }
 
-void dialog_hide(dialog_t *d)
+void ui_dialog_hide(ui_dialog_t *d)
 {
     d->hide = true;
 }
 
-void dialog_hide_all(void)
+void ui_dialog_unwind(void)
 {
-    dialog_t *d = top;
+    ui_dialog_t *d = top;
     while (d) {
         d->hide = true;
         d = d->parent;
     }
 }
 
-void dialog_insert_control(dialog_t *d, int index, control_t *control)
+void ui_dialog_add(ui_dialog_t *d, ui_control_t *control)
 {
-    assert(control != NULL);
-    assert(d->num_controls < MAX_CONTROLS);
-    if (index < 0) {
-        index = d->num_controls + index;
+    for (int i = 0; i < d->controls_size; i++) {
+        if (d->controls[i] == NULL) {
+            d->controls[i] = control;
+            return;
+        }
     }
-    assert(index >= 0 && index <= d->num_controls);
 
-    memmove(&d->controls[index + 1], &d->controls[index], sizeof(struct control_t *) * (d->num_controls - index));
-    d->controls[index] = control;
-    control->d = d;
-    d->num_controls += 1;
+    d->controls_size += 1;
+    d->controls = realloc(d->controls, sizeof(ui_control_t *) * d->controls_size);
+    assert(d->controls != NULL);
+    d->controls[d->controls_size - 1] = control;
 }
 
-void dialog_append_control(dialog_t *d, control_t *control)
+ui_control_t *ui_dialog_find_control(ui_dialog_t *d, direction_t dir)
 {
-    dialog_insert_control(d, d->num_controls, control);
-}
-
-control_t *dialog_remove_control(dialog_t *d, int index)
-{
-    assert(d->num_controls > 0);
-    if (index < 0) {
-        index = d->num_controls + index;
-    }
-    assert(index >= 0 && index <= d->num_controls);
-
-    control_t *control = d->controls[index];
-    memmove(&d->controls[index], &d->controls[index + 1], sizeof(struct control_t *) * (d->num_controls - index - 1));
-    control->d = NULL;
-    return control;
-}
-
-control_t *dialog_find_control(dialog_t *d, direction_t dir)
-{
-    control_t *active = d->active;
-    control_t *hidest = NULL;
+    ui_control_t *active = d->active;
+    ui_control_t *hidest = NULL;
     float hidest_distance = INFINITY;
 
     if (!active) {
@@ -215,9 +208,9 @@ control_t *dialog_find_control(dialog_t *d, direction_t dir)
     short active_cx = active->r.x + active->r.width / 2;
     short active_cy = active->r.y + active->r.height / 2;
 
-    for (size_t i = 0; i < d->num_controls; i++) {
-        control_t *control = d->controls[i];
-        if (control == active || control->type == CONTROL_LABEL) {
+    for (size_t i = 0; i < d->controls_size; i++) {
+        ui_control_t *control = d->controls[i];
+        if (!control || control == active || control->type == CONTROL_LABEL) {
             continue;
         }
         short control_cx = control->r.x + control->r.width / 2;

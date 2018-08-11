@@ -16,11 +16,11 @@
 #include "wifi.h"
 
 #include "app.h"
-#include "dialog.h"
 #include "graphics.h"
 #include "tf.h"
 #include "OpenSans_Regular_11X12.h"
 #include "statusbar.h"
+#include "ui_dialog.h"
 
 
 void app_main(void)
@@ -85,7 +85,7 @@ void app_main(void)
             .height = 180,
         };
         
-        dialog_t *d = dialog_new(NULL, r, "The quick brown fox jumps over the lazy dog.");
+        ui_dialog_t *d = ui_dialog_new(NULL, r, "The quick brown fox jumps over the lazy dog.");
         d->keypad = keypad;
         rect_t lr = {
             .x = 0,
@@ -93,24 +93,24 @@ void app_main(void)
             .width = 240 - 4,
             .height = 16,
         };
-        dialog_append_control(d, (control_t *)control_button_new(d, lr, "button 1", NULL));
+        ui_button_add(d, lr, "button 1", NULL);
 
         lr.y += 17;
         lr.width = 50;
-        dialog_append_control(d, (control_t *)control_label_new(d, lr, "a label"));
+        ui_label_add(d, lr, "a label");
 
         lr.x = 60;
-        dialog_append_control(d, (control_t *)control_button_new(d, lr, "button 2", NULL));
+        ui_button_add(d, lr, "button2", NULL);
 
         lr.x = 120;
-        dialog_append_control(d, (control_t *)control_button_new(d, lr, "button 3", NULL));
+        ui_button_add(d, lr, "button 3", NULL);
 
         lr.x = 0;
         lr.y += 17;
         lr.width = 240 - 4;
-        dialog_append_control(d, (control_t *)control_edit_new(d, lr, "edit 1", 64));
+        ui_edit_add(d, lr, "edit 1", 64);
 
-        dialog_showmodal(d);
-        dialog_destroy(d);
+        ui_dialog_showmodal(d);
+        ui_dialog_destroy(d);
     }
 }

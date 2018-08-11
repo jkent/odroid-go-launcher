@@ -1,14 +1,15 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stddef.h>
 
-#include "control.h"
+#include "ui_controls.h"
 #include "graphics.h"
 #include "tf.h"
 
 
-typedef struct osk_t {
-    control_edit_t *edit;
+typedef struct ui_osk_t {
+    ui_edit_t *edit;
     gbuf_t *g;
     rect_t r;
     tf_t *tf;
@@ -18,8 +19,8 @@ typedef struct osk_t {
     short col;
     size_t keyboard;
     bool hide;
-} osk_t;
+} ui_osk_t;
 
-osk_t *osk_new(control_edit_t *edit);
-void osk_free(osk_t *osk);
-void osk_showmodal(osk_t *osk);
+ui_osk_t *ui_osk_new(ui_edit_t *edit);
+void ui_osk_free(ui_osk_t *osk);
+bool ui_osk_showmodal(ui_osk_t *osk);

@@ -4,12 +4,13 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#include "dialog.h"
 #include "display.h"
 #include "keypad.h"
 #include "OpenSans_Regular_11X12.h"
-#include "osk.h"
 #include "statusbar.h"
+#include "ui_dialog.h"
+#include "ui_osk.h"
+
 
 const char keyboards[3][4][11] = {
     {
@@ -33,9 +34,9 @@ const char keyboards[3][4][11] = {
 
 };
 
-osk_t *osk_new(control_edit_t *edit)
+ui_osk_t *ui_osk_new(ui_edit_t *edit)
 {
-    osk_t *osk = calloc(1, sizeof(osk_t));
+    ui_osk_t *osk = calloc(1, sizeof(ui_osk_t));
     assert(osk != NULL);
 
     osk->tf = tf_new(&font_OpenSans_Regular_11X12, fb->width - 4, 0);
@@ -46,6 +47,9 @@ osk_t *osk_new(control_edit_t *edit)
     osk->r.width = fb->width;
     osk->r.height = osk->button_height * 6;
 
+    osk->g = gbuf_new(osk->r.width, osk->r.height, 2, BIG_ENDIAN);
+
+    /* home position */
     osk->row = 1;
     osk->col = 11;
 
@@ -54,13 +58,14 @@ osk_t *osk_new(control_edit_t *edit)
     return osk;
 }
 
-void osk_free(osk_t *osk)
+void ui_osk_free(ui_osk_t *osk)
 {
+    gbuf_free(osk->g);
     tf_free(osk->tf);
     free(osk);
 }
 
-static void osk_draw(osk_t *osk)
+static void osk_draw(ui_osk_t *osk)
 {
     fill_rectangle(fb, osk->r, 0x0000);
 
@@ -136,7 +141,7 @@ static void osk_draw(osk_t *osk)
     }
 }
 
-static bool osk_up(osk_t *osk)
+static bool osk_up(ui_osk_t *osk)
 {
     bool draw = false;
     if (osk->row > 0) {
@@ -146,7 +151,7 @@ static bool osk_up(osk_t *osk)
     return draw;
 }
 
-static bool osk_right(osk_t *osk)
+static bool osk_right(ui_osk_t *osk)
 {
     bool draw = false;
     if (osk->col < 11) {
@@ -174,7 +179,7 @@ static bool osk_right(osk_t *osk)
     return draw;
 }
 
-static bool osk_down(osk_t *osk)
+static bool osk_down(ui_osk_t *osk)
 {
     bool draw = false;
     if (osk->row < 4) {
@@ -195,7 +200,7 @@ static bool osk_down(osk_t *osk)
     return draw;
 }
 
-static bool osk_left(osk_t *osk)
+static bool osk_left(ui_osk_t *osk)
 {
     bool draw = false;
     if (osk->col > 0) {
@@ -209,7 +214,7 @@ static bool osk_left(osk_t *osk)
     return draw;
 }
 
-static bool osk_a(osk_t *osk)
+static bool osk_a(ui_osk_t *osk)
 {
     if (osk->col < 11 && osk->row < 4) {
         size_t len = strlen(osk->edit->text);
@@ -257,7 +262,7 @@ static bool osk_a(osk_t *osk)
     return false;
 }
 
-void osk_showmodal(osk_t *osk)
+bool ui_osk_showmodal(ui_osk_t *osk)
 {
     osk->g = gbuf_new(osk->r.width, osk->r.height, 2, BIG_ENDIAN);
 
@@ -272,6 +277,7 @@ void osk_showmodal(osk_t *osk)
     osk_draw(osk);
     display_update_rect(osk->r);
 
+    bool result = false;
     osk->hide = false;
     keypad_info_t keys;
     while (true) {
@@ -295,6 +301,10 @@ void osk_showmodal(osk_t *osk)
 
             if (keys.pressed & KEYPAD_A) {
                 dirty |= osk_a(osk);
+                if (osk->hide) {
+                    result = true;
+                    break;
+                }
             }
 
             if (keys.pressed & KEYPAD_B) {
@@ -302,11 +312,7 @@ void osk_showmodal(osk_t *osk)
             }
 
             if (keys.pressed & KEYPAD_MENU) {
-                dialog_hide_all();
-                break;
-            }
-
-            if (osk->hide) {
+                ui_dialog_unwind();
                 break;
             }
 
@@ -322,4 +328,6 @@ void osk_showmodal(osk_t *osk)
     display_update_rect(osk->r);
 
     osk->edit->dirty = true;
+
+    return result;
 }
