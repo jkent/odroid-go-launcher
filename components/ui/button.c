@@ -11,7 +11,7 @@ static void draw(control_t *control)
 {
     control_button_t *button = (control_button_t *)control;
 
-    tf_t *tf = tf_new(&font_OpenSans_Regular_11X12, button->r.width, TF_ALIGN_CENTER | TF_ELIDE);
+    tf_t *tf = tf_new(&font_OpenSans_Regular_11X12, button->r.width - 4, TF_ALIGN_CENTER | TF_ELIDE);
     tf->clip = button->r;
     tf->clip.x += button->d->cr.x;
     tf->clip.y += button->d->cr.y;
@@ -24,7 +24,7 @@ static void draw(control_t *control)
     if (button->text) {
         tf_metrics_t m = tf_get_str_metrics(tf, button->text);
         point_t p = {
-            .x = button->d->cr.x + button->r.x,
+            .x = button->d->cr.x + button->r.x + 2,
             .y = button->d->cr.y + button->r.y + button->r.height/2 - m.height/2 + 1,
         };
         tf_draw_str(fb, tf, button->text, p);
@@ -42,8 +42,8 @@ control_button_t *control_button_new(dialog_t *d, rect_t r, const char *text, co
     button->d = d;
     button->r = r;
     button->draw = draw;
-    button->text = strdup(text);
     button->onselect = onselect;
+    button->text = strdup(text);
 
     return button;
 }

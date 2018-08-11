@@ -101,7 +101,7 @@ void app_main(void)
         lr.x = 0;
         lr.y += 17;
         lr.width = 240 - 4;
-        dialog_append_control(d, (control_t *)control_button_new(d, lr, "button 4", NULL));
+        dialog_append_control(d, (control_t *)control_edit_new(d, lr, "edit 1", 64));
 
         dialog_showmodal(d);
         dialog_destroy(d);

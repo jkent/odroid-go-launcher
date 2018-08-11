@@ -3,6 +3,7 @@
 #include <stddef.h>
 
 #include "dialog.h"
+#include "graphics.h"
 
 
 typedef struct dialog_t dialog_t;
