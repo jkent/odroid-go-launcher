@@ -17,6 +17,7 @@ typedef struct osk_t {
     short row;
     short col;
     size_t keyboard;
+    bool hide;
 } osk_t;
 
 osk_t *osk_new(control_edit_t *edit);

@@ -25,6 +25,8 @@
 
 void app_main(void)
 {
+    QueueHandle_t keypad;
+
     display_init();
     backlight_init();
 
@@ -55,6 +57,8 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_vfs_spiffs_register(&conf));
     statusbar_init();
 
+    keypad = keypad_get_queue();
+
     s = "Press Menu button for the menu.";
     m = tf_get_str_metrics(tf, s);
     p.x = fb->width/2 - tf->width/2;
@@ -64,13 +68,15 @@ void app_main(void)
     display_update();
 
     while (true) {
-        uint16_t keys = 0, changes = 0, pressed = 0;
-        do {
-            vTaskDelay(10 / portTICK_PERIOD_MS);
-            keys = keypad_debounce(keypad_sample(), &changes);
-            pressed = keys & changes;
+        keypad_info_t keys;
+        while (true) {
+            if (keypad_queue_receive(keypad, &keys, 250 / portTICK_RATE_MS)) {
+                if (keys.pressed & KEYPAD_MENU) {
+                    break;
+                }
+            }
             statusbar_update();
-        } while (!(pressed & KEYPAD_MENU));
+        }
 
         rect_t r = {
             .x = DISPLAY_WIDTH/2 - 240/2,
@@ -79,7 +85,8 @@ void app_main(void)
             .height = 180,
         };
         
-        dialog_t *d = dialog_new(r, "The quick brown fox jumps over the lazy dog.");
+        dialog_t *d = dialog_new(NULL, r, "The quick brown fox jumps over the lazy dog.");
+        d->keypad = keypad;
         rect_t lr = {
             .x = 0,
             .y = 0,

@@ -116,7 +116,7 @@ static void osk_draw(osk_t *osk)
             if (draw) {
                 rect_t r = {
                     .x = osk->r.x + cx + osk->button_width * col,
-                    .y = osk->r.y + cy + osk->button_height * (row + 1),
+                    .y = osk->r.y + cy + osk->button_height * (row + 1) + 1,
                     .width = osk->button_width * cols - 1,
                     .height = osk->button_height * rows - 1,
                 };
@@ -136,6 +136,127 @@ static void osk_draw(osk_t *osk)
     }
 }
 
+static bool osk_up(osk_t *osk)
+{
+    bool draw = false;
+    if (osk->row > 0) {
+        osk->row -= 1;
+        draw = true;
+    }
+    return draw;
+}
+
+static bool osk_right(osk_t *osk)
+{
+    bool draw = false;
+    if (osk->col < 11) {
+        if (osk->row == 4) {
+            if (osk->col == 0) {
+                osk->col = 2;
+                draw = true;
+            } else if (osk->col == 2) {
+                osk->col = 3;
+                draw = true;
+            } else if (osk->col == 3) {
+                osk->row = 1;
+                osk->col = 11;
+                draw = true;
+            }
+        } else {
+            osk->col += 1;
+            draw = true;
+        }
+        if (osk->col == 11 && osk->row > 1 && osk->row <= 3) {
+            osk->row = 1;
+            draw = true;
+        }
+    }
+    return draw;
+}
+
+static bool osk_down(osk_t *osk)
+{
+    bool draw = false;
+    if (osk->row < 4) {
+        if (osk->col < 11 || osk->row < 1) {
+            osk->row += 1;
+            draw = true;
+        }
+        if (osk->row == 4) {
+            if (osk->col == 1) {
+                osk->col = 0;
+                draw = true;
+            } else if (osk->col > 3 && osk->col <= 10) {
+                osk->col = 3;
+                draw = true;
+            }
+        }
+    }
+    return draw;
+}
+
+static bool osk_left(osk_t *osk)
+{
+    bool draw = false;
+    if (osk->col > 0) {
+        if (osk->row == 4 && osk->col == 2) {
+            osk->col = 0;
+        } else {
+            osk->col -= 1;
+        }
+        draw = true;
+    }
+    return draw;
+}
+
+static bool osk_a(osk_t *osk)
+{
+    if (osk->col < 11 && osk->row < 4) {
+        size_t len = strlen(osk->edit->text);
+        if (len < osk->edit->text_len - 1) {
+            osk->edit->text[len] = keyboards[osk->keyboard][osk->row][osk->col];
+            osk->edit->text[len + 1] = '\0';
+            osk->keyboard = 0;
+            return true;
+        }
+    } else if (osk->col == 11) {
+        if (osk->row == 0) { /* Backspace */
+            size_t len = strlen(osk->edit->text);
+            if (len > 0) {
+                osk->edit->text[len - 1] = '\0';
+                return true;
+            }
+        } else if (osk->row == 1) { /* OK */
+            osk->hide = true;
+            return false;
+        }
+    } else if (osk->row == 4) {
+        if (osk->col == 0) { /* Shift */
+            if (osk->keyboard == 1) {
+                osk->keyboard = 0;
+            } else {
+                osk->keyboard = 1;
+            }
+            return true;
+        } else if (osk->col == 2) { /* Symbol */
+            if (osk->keyboard == 2) {
+                osk->keyboard = 0;
+            } else {
+                osk->keyboard = 2;
+            }
+            return true;
+        } else if (osk->col == 3) { /* Spacebar */
+            size_t len = strlen(osk->edit->text);
+            if (len < osk->edit->text_len - 1) {
+                osk->edit->text[len] = ' ';
+                osk->edit->text[len + 1] = '\0';
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 void osk_showmodal(osk_t *osk)
 {
     osk->g = gbuf_new(osk->r.width, osk->r.height, 2, BIG_ENDIAN);
@@ -151,112 +272,51 @@ void osk_showmodal(osk_t *osk)
     osk_draw(osk);
     display_update_rect(osk->r);
 
-    bool done = false;
+    osk->hide = false;
+    keypad_info_t keys;
+    while (true) {
+        if (keypad_queue_receive(osk->edit->d->keypad, &keys, 250 / portTICK_RATE_MS)) {
+            bool dirty = false;
+            if (keys.pressed & KEYPAD_UP) {
+                dirty |= osk_up(osk);
+            }
 
-    uint16_t keys = 0, changes = 0, pressed;
-    do {
-        vTaskDelay(10 / portTICK_PERIOD_MS);
-        keys = keypad_debounce(keypad_sample(), &changes);
-        pressed = keys & changes;
+            if (keys.pressed & KEYPAD_RIGHT) {
+                dirty |= osk_right(osk);
+            }
+
+            if (keys.pressed & KEYPAD_DOWN) {
+                dirty |= osk_down(osk);
+            }
+
+            if (keys.pressed & KEYPAD_LEFT) {
+                dirty |= osk_left(osk);
+            }
+
+            if (keys.pressed & KEYPAD_A) {
+                dirty |= osk_a(osk);
+            }
+
+            if (keys.pressed & KEYPAD_B) {
+                break;
+            }
+
+            if (keys.pressed & KEYPAD_MENU) {
+                dialog_hide_all();
+                break;
+            }
+
+            if (osk->hide) {
+                break;
+            }
+
+            if (dirty) {
+                osk_draw(osk);
+                display_update_rect(osk->r);
+            }
+        }
         statusbar_update();
-
-        bool dirty = false;
-        if (pressed & KEYPAD_UP && osk->row > 0) {
-            osk->row -= 1;
-            dirty = true;
-        }
-        if (pressed & KEYPAD_RIGHT && osk->col < 11) {
-            if (osk->row == 4) {
-                if (osk->col == 0) {
-                    osk->col = 2;
-                } else if (osk->col == 2) {
-                    osk->col = 3;
-                } else if (osk->col == 3) {
-                    osk->row = 1;
-                    osk->col = 11;
-                }
-            } else {
-                osk->col += 1;
-            }
-            if (osk->col == 11 && osk->row > 1 && osk->row <= 3) {
-                osk->row = 1;
-            }
-            dirty = true;
-        }
-        if (pressed & KEYPAD_DOWN && osk->row < 4) {
-            if (osk->col < 11 || osk->row < 1) {
-                osk->row += 1;
-            }
-            if (osk->row == 4) {
-                if (osk->col == 1) {
-                    osk->col = 0;
-                } else if (osk->col > 3 && osk->col <= 10) {
-                    osk->col = 3;
-                }
-            }
-            dirty = true;
-        }
-        if (pressed & KEYPAD_LEFT && osk->col > 0) {
-            if (osk->row == 4 && osk->col == 2) {
-                osk->col = 0;
-            } else {
-                osk->col -= 1;
-            }
-            dirty = true;
-        }
-        if (pressed & KEYPAD_A) {
-            if (osk->col < 11 && osk->row < 4) {
-                size_t len = strlen(osk->edit->text);
-                if (len < osk->edit->text_len - 1) {
-                    osk->edit->text[len] = keyboards[osk->keyboard][osk->row][osk->col];
-                    osk->edit->text[len + 1] = '\0';
-                    osk->keyboard = 0;
-                }
-            } else if (osk->col == 11) {
-                if (osk->row == 0) { /* Backspace */
-                    size_t len = strlen(osk->edit->text);
-                    if (len > 0) {
-                        osk->edit->text[len - 1] = '\0';
-                    }
-                } else if (osk->row == 1) { /* OK */
-                    done = true;
-                }
-            } else if (osk->row == 4) {
-                if (osk->col == 0) { /* Shift */
-                    if (osk->keyboard == 1) {
-                        osk->keyboard = 0;
-                    } else {
-                        osk->keyboard = 1;
-                    }
-                } else if (osk->col == 2) { /* Symbol */
-                    if (osk->keyboard == 2) {
-                        osk->keyboard = 0;
-                    } else {
-                        osk->keyboard = 2;
-                    }
-                } else if (osk->col == 3) { /* Spacebar */
-                    size_t len = strlen(osk->edit->text);
-                    if (len < osk->edit->text_len - 1) {
-                        osk->edit->text[len] = ' ';
-                        osk->edit->text[len + 1] = '\0';
-                    }
-                }
-            }
-            dirty = true;
-        }
-        if (pressed & KEYPAD_B) {
-            size_t len = strlen(osk->edit->text);
-            if (len > 0) {
-                osk->edit->text[len - 1] = '\0';
-                dirty = true;
-            }
-        }
-
-        if (dirty) {
-            osk_draw(osk);
-            display_update_rect(osk->r);
-        }
-    } while (!done);
+    }
 
     blit(fb, osk->r, osk->g, r);
     display_update_rect(osk->r);

@@ -1,9 +1,6 @@
 #include <math.h>
 #include <string.h>
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-
 #include "keypad.h"
 #include "display.h"
 #include "gbuf.h"
@@ -14,11 +11,17 @@
 #include "tf.h"
 
 
-dialog_t *dialog_new(rect_t r, const char *title)
+static dialog_t *top = NULL;
+
+dialog_t *dialog_new(dialog_t *parent, rect_t r, const char *title)
 {
     dialog_t *d = calloc(1, sizeof(dialog_t));
-    memcpy(&d->r, &r, sizeof(rect_t));
+    d->parent = parent;
+    d->r = r;
     d->g = gbuf_new(r.width, r.height, fb->bytes_per_pixel, fb->endian);
+    if (parent) {
+        d->keypad = parent->keypad;
+    }
     if (title) {
         d->title = strdup(title);
     }
@@ -68,7 +71,7 @@ void ui_dialog_draw(dialog_t *d)
 
 void dialog_showmodal(dialog_t *d)
 {
-    d->close = false;
+    d->hide = false;
 
     rect_t r = {
         .x = 0,
@@ -78,8 +81,12 @@ void dialog_showmodal(dialog_t *d)
     };
     blit(d->g, r, fb, d->r);
 
+    d->hide = false;
     d->visible = true;
     ui_dialog_draw(d);
+
+    d->parent = top;
+    top = d;
 
     for (int i = 0; i < d->num_controls; i++) {
         control_t *control = d->controls[i];
@@ -92,57 +99,73 @@ void dialog_showmodal(dialog_t *d)
 
     display_update_rect(d->r);
 
-    uint16_t keys = 0, changes = 0, pressed;
-    do {
-        vTaskDelay(10 / portTICK_PERIOD_MS);
-        keys = keypad_debounce(keypad_sample(), &changes);
-        pressed = keys & changes;
-        statusbar_update();
+    keypad_info_t keys;
+    while (!d->hide) {
+        if (keypad_queue_receive(d->keypad, &keys, 250 / portTICK_RATE_MS)) {
+            if (keys.pressed & KEYPAD_MENU) {
+                dialog_hide_all();
+            }
 
-        control_t *new_active = NULL;
-        if (pressed & KEYPAD_UP) {
-            new_active = dialog_find_control(d, DIRECTION_UP);
-        } else if (pressed & KEYPAD_RIGHT) {
-            new_active = dialog_find_control(d, DIRECTION_RIGHT);
-        } else if (pressed & KEYPAD_DOWN) {
-            new_active = dialog_find_control(d, DIRECTION_DOWN);
-        } else if (pressed & KEYPAD_LEFT) {
-            new_active = dialog_find_control(d, DIRECTION_LEFT);
-        }
+            control_t *new_active = NULL;
+            if (keys.pressed & KEYPAD_UP) {
+                new_active = dialog_find_control(d, DIRECTION_UP);
+            } else if (keys.pressed & KEYPAD_RIGHT) {
+                new_active = dialog_find_control(d, DIRECTION_RIGHT);
+            } else if (keys.pressed & KEYPAD_DOWN) {
+                new_active = dialog_find_control(d, DIRECTION_DOWN);
+            } else if (keys.pressed & KEYPAD_LEFT) {
+                new_active = dialog_find_control(d, DIRECTION_LEFT);
+            }
 
-        if (new_active) {
-            control_t *old_active = d->active;
-            d->active = new_active;
-            old_active->draw(old_active);
-            new_active->draw(new_active);
-        }
+            if (new_active) {
+                control_t *old_active = d->active;
+                d->active = new_active;
+                old_active->draw(old_active);
+                new_active->draw(new_active);
+            }
 
-        if (pressed & KEYPAD_A && d->active->onselect) {
-            d->active->onselect(d->active);
-        }
+            if (keys.pressed & KEYPAD_A && d->active->onselect) {
+                d->active->onselect(d->active);
+            }
 
-        bool dirty = false;
-        for (int i = 0; i < d->num_controls; i++) {
-            control_t *control = d->controls[i];
-            if (control->dirty) {
-                dirty = true;
-                control->dirty = false;
+            if (keys.pressed & KEYPAD_B) {
+                break;
+            }
+
+            bool dirty = false;
+            for (int i = 0; i < d->num_controls; i++) {
+                control_t *control = d->controls[i];
+                if (control->dirty) {
+                    dirty = true;
+                    control->dirty = false;
+                }
+            }
+            if (dirty) {
+                display_update_rect(d->r);
             }
         }
-        if (dirty) {
-            display_update_rect(d->r);
-        }
-    } while (!(pressed & KEYPAD_B));
+        statusbar_update();
+    }
 
     blit(fb, d->r, d->g, r);
     display_update_rect(d->r);
 
+    top = d->parent;
     d->visible = false;
 }
 
 void dialog_hide(dialog_t *d)
 {
-    d->close = true;
+    d->hide = true;
+}
+
+void dialog_hide_all(void)
+{
+    dialog_t *d = top;
+    while (d) {
+        d->hide = true;
+        d = d->parent;
+    }
 }
 
 void dialog_insert_control(dialog_t *d, int index, control_t *control)
@@ -182,8 +205,8 @@ control_t *dialog_remove_control(dialog_t *d, int index)
 control_t *dialog_find_control(dialog_t *d, direction_t dir)
 {
     control_t *active = d->active;
-    control_t *closest = NULL;
-    float closest_distance = INFINITY;
+    control_t *hidest = NULL;
+    float hidest_distance = INFINITY;
 
     if (!active) {
         return NULL;
@@ -207,11 +230,11 @@ control_t *dialog_find_control(dialog_t *d, direction_t dir)
             short dx = abs(active_cx - control_cx);
             short dy = abs(active_cy - control_cy);
             float distance = sqrtf(dx * dx + dy * dy);
-            if (closest == NULL || distance < closest_distance) {
-                closest = control;
-                closest_distance = distance;
+            if (hidest == NULL || distance < hidest_distance) {
+                hidest = control;
+                hidest_distance = distance;
             }
         }
     }
-    return closest;
+    return hidest;
 }
