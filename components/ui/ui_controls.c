@@ -264,11 +264,11 @@ static void list_draw(ui_control_t *control)
             case LIST_ITEM_SEPARATOR: {
                 point_t start = {
                     .x = r.x + PADDING,
-                    .y = r.y + list->item_height / 2,
+                    .y = r.y + list->item_height/2,
                 };
                 point_t end = {
                     .x = r.x + r.width - 1 - PADDING,
-                    .y = r.y + list->item_height / 2,
+                    .y = r.y + list->item_height/2,
                 };
                 draw_line(fb, start, end, DRAW_STYLE_SOLID, 0xFFFF);
                 break;

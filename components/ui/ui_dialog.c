@@ -11,6 +11,8 @@
 #include "ui_dialog.h"
 
 
+#define PADDING (2)
+
 static ui_dialog_t *top = NULL;
 
 ui_dialog_t *ui_dialog_new(ui_dialog_t *parent, rect_t r, const char *title)
@@ -44,10 +46,10 @@ void ui_dialog_draw(ui_dialog_t *d)
 {
     assert(d->visible);
 
-    d->cr.x = d->r.x + 2;
-    d->cr.y = d->r.y + 2;
-    d->cr.width = d->r.width - 4;
-    d->cr.height = d->r.height - 4;
+    d->cr.x = d->r.x + PADDING;
+    d->cr.y = d->r.y + PADDING;
+    d->cr.width = d->r.width - 2*PADDING;
+    d->cr.height = d->r.height - 2*PADDING;
 
     fill_rectangle(fb, d->r, 0x0000);
     draw_rectangle(fb, d->r, DRAW_STYLE_SOLID, 0xFFFF);
@@ -65,8 +67,8 @@ void ui_dialog_draw(ui_dialog_t *d)
         draw_rectangle(fb, r, DRAW_STYLE_SOLID, 0xFFFF);
 
         point_t p = {
-            .x = d->r.x + 2,
-            .y = d->r.y + 3,
+            .x = d->r.x + PADDING,
+            .y = d->r.y + PADDING + 1,
         };
         tf_draw_str(fb, tf, d->title, p);
 
@@ -214,16 +216,16 @@ ui_control_t *ui_dialog_find_control(ui_dialog_t *d, direction_t dir)
         return NULL;
     }
 
-    short active_cx = active->r.x + active->r.width / 2;
-    short active_cy = active->r.y + active->r.height / 2;
+    short active_cx = active->r.x + active->r.width/2;
+    short active_cy = active->r.y + active->r.height/2;
 
     for (size_t i = 0; i < d->controls_size; i++) {
         ui_control_t *control = d->controls[i];
         if (!control || control == active || control->type == CONTROL_LABEL) {
             continue;
         }
-        short control_cx = control->r.x + control->r.width / 2;
-        short control_cy = control->r.y + control->r.height /2;
+        short control_cx = control->r.x + control->r.width/2;
+        short control_cy = control->r.y + control->r.height/2;
 
         if ((dir == DIRECTION_LEFT  && control->r.x + control->r.width - 1 < active->r.x) ||
             (dir == DIRECTION_RIGHT && control->r.x > active->r.x + active->r.width - 1) ||
