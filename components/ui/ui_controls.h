@@ -25,6 +25,7 @@ typedef struct ui_control_t {
     ui_control_type_t type;
     ui_dialog_t *d;
     rect_t r;
+    tf_t *tf;
     bool dirty;
     ui_control_draw_t draw;
     ui_control_onselect_t onselect;
@@ -38,6 +39,7 @@ typedef struct ui_button_t {
     ui_control_type_t type;
     ui_dialog_t *d;
     rect_t r;
+    tf_t *tf;
     bool dirty;
     ui_control_draw_t draw;
     ui_control_onselect_t onselect;
@@ -55,6 +57,7 @@ typedef struct ui_edit_t {
     ui_control_type_t type;
     ui_dialog_t *d;
     rect_t r;
+    tf_t *tf;
     bool dirty;
     ui_control_draw_t draw;
     ui_control_onselect_t onselect;
@@ -75,6 +78,7 @@ typedef struct ui_label_t {
     ui_control_type_t type;
     ui_dialog_t *d;
     rect_t r;
+    tf_t *tf;
     bool dirty;
     ui_control_draw_t draw;
     ui_control_onselect_t onselect;
@@ -109,6 +113,7 @@ typedef struct ui_list_t {
     ui_control_type_t type;
     ui_dialog_t *d;
     rect_t r;
+    tf_t *tf;
     bool dirty;
     ui_control_draw_t draw;
     ui_control_onselect_t onselect;
@@ -117,10 +122,14 @@ typedef struct ui_list_t {
     bool selected;
     ui_list_item_t *items;
     size_t item_count;
-    size_t item_index;
+    int item_index;
+    int rows;
+    int first_index;
+    int shift;
+    int item_height;
 } ui_list_t;
 
 ui_list_t *ui_dialog_add_list(ui_dialog_t *d, rect_t r);
-void ui_list_insert(ui_list_t *list, int index, char *text, ui_list_item_onselect_t onselect);
-void ui_list_append(ui_list_t *list, char *text, ui_list_item_onselect_t onselect);
+void ui_list_insert_text(ui_list_t *list, int index, char *text, ui_list_item_onselect_t onselect);
+void ui_list_append_text(ui_list_t *list, char *text, ui_list_item_onselect_t onselect);
 void ui_list_remove(ui_list_t *list, int index);

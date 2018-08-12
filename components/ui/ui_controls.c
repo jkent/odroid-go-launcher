@@ -9,6 +9,8 @@
 #include "ui_dialog.h"
 #include "ui_osk.h"
 
+#define BORDER_WIDTH (2)
+
 
 /* ui_button */
 
@@ -16,26 +18,24 @@ static void button_draw(ui_control_t *control)
 {
     ui_button_t *button = (ui_button_t *)control;
 
-    tf_t *tf = tf_new(&font_OpenSans_Regular_11X12, button->r.width - 4, TF_ALIGN_CENTER | TF_ELIDE);
-    tf->clip = button->r;
-    tf->clip.x += button->d->cr.x;
-    tf->clip.y += button->d->cr.y;
+    button->tf->clip = button->r;
+    button->tf->clip.x += button->d->cr.x;
+    button->tf->clip.y += button->d->cr.y;
 
-    fill_rectangle(fb, tf->clip, 0x632C);
+    fill_rectangle(fb, button->tf->clip, 0x632C);
     if (control == control->d->active) {
-        draw_rectangle(fb, tf->clip, DRAW_STYLE_SOLID, 0xFFFF);
+        draw_rectangle(fb, button->tf->clip, DRAW_STYLE_SOLID, 0xFFFF);
     }
 
     if (button->text) {
-        tf_metrics_t m = tf_get_str_metrics(tf, button->text);
+        tf_metrics_t m = tf_get_str_metrics(button->tf, button->text);
         point_t p = {
             .x = button->d->cr.x + button->r.x + 2,
             .y = button->d->cr.y + button->r.y + button->r.height/2 - m.height/2 + 1,
         };
-        tf_draw_str(fb, tf, button->text, p);
+        tf_draw_str(fb, button->tf, button->text, p);
     }
 
-    tf_free(tf);
     button->dirty = true;
 }
 
@@ -46,6 +46,7 @@ static void button_free(ui_control_t *control)
     if (button->text) {
         free(button->text);
     }
+    tf_free(button->tf);
     free(button);
 }
 
@@ -60,6 +61,7 @@ ui_button_t *ui_dialog_add_button(ui_dialog_t *d, rect_t r, const char *text, ui
     button->onselect = onselect;
     button->free = button_free;
     button->text = strdup(text);
+    button->tf = tf_new(&font_OpenSans_Regular_11X12, button->r.width, TF_ELIDE);
 
     ui_dialog_add_control(d, (ui_control_t *)button);
 
@@ -73,26 +75,24 @@ static void edit_draw(ui_control_t *control)
 {
     ui_edit_t *edit = (ui_edit_t *)control;
 
-    tf_t *tf = tf_new(&font_OpenSans_Regular_11X12, edit->r.width - 4, 0);
-    tf->clip = edit->r;
-    tf->clip.x += edit->d->cr.x;
-    tf->clip.y += edit->d->cr.y;
+    edit->tf->clip = edit->r;
+    edit->tf->clip.x += edit->d->cr.x;
+    edit->tf->clip.y += edit->d->cr.y;
 
-    fill_rectangle(fb, tf->clip, 0x3186);
+    fill_rectangle(fb, edit->tf->clip, 0x3186);
     if (control == control->d->active) {
-        draw_rectangle(fb, tf->clip, DRAW_STYLE_SOLID, 0xFFFF);
+        draw_rectangle(fb, edit->tf->clip, DRAW_STYLE_SOLID, 0xFFFF);
     }
 
     if (edit->text) {
-        tf_metrics_t m = tf_get_str_metrics(tf, edit->text);
+        tf_metrics_t m = tf_get_str_metrics(edit->tf, edit->text);
         point_t p = {
             .x = edit->d->cr.x + edit->r.x + 2,
             .y = edit->d->cr.y + edit->r.y + edit->r.height/2 - m.height/2 + 1,
         };
-        tf_draw_str(fb, tf, edit->text, p);
+        tf_draw_str(fb, edit->tf, edit->text, p);
     }
 
-    tf_free(tf);
     edit->dirty = true;
 }
 
@@ -133,6 +133,7 @@ ui_edit_t *ui_dialog_add_edit(ui_dialog_t *d, rect_t r, const char *text, size_t
     strncpy(edit->text, text, text_len);
     edit->text[text_len - 1] = '\0';
     edit->text_len = text_len;
+    edit->tf = tf_new(&font_OpenSans_Regular_11X12, edit->r.width, TF_ELIDE);
 
     ui_dialog_add_control(d, (ui_control_t *)edit);
 
@@ -146,21 +147,19 @@ static void label_draw(ui_control_t *control)
 {
     ui_label_t *label = (ui_label_t *)control;
 
-    tf_t *tf = tf_new(&font_OpenSans_Regular_11X12, label->r.width, TF_ELIDE);
-    tf->clip = label->r;
-    tf->clip.x += label->d->cr.x;
-    tf->clip.y += label->d->cr.y;
+    label->tf->clip = label->r;
+    label->tf->clip.x += label->d->cr.x;
+    label->tf->clip.y += label->d->cr.y;
 
     if (label->text) {
-        tf_metrics_t m = tf_get_str_metrics(tf, label->text);
+        tf_metrics_t m = tf_get_str_metrics(label->tf, label->text);
         point_t p = {
             .x = label->d->cr.x + label->r.x,
             .y = label->d->cr.y + label->r.y + label->r.height/2 - m.height/2,
         };
-        tf_draw_str(fb, tf, label->text, p);
+        tf_draw_str(fb, label->tf, label->text, p);
     }
 
-    tf_free(tf);
     label->dirty = true;
 }
 
@@ -171,6 +170,7 @@ static void label_free(ui_control_t *control)
     if (label->text) {
         free(label->text);
     }
+    tf_free(label->tf);
     free(label);
 }
 
@@ -184,6 +184,7 @@ ui_label_t *ui_dialog_add_label(ui_dialog_t *d, rect_t r, const char *text)
     label->draw = label_draw;
     label->free = label_free;
     label->text = strdup(text);
+    label->tf = tf_new(&font_OpenSans_Regular_11X12, label->r.width, TF_ELIDE);
 
     ui_dialog_add_control(d, (ui_control_t *)label);
 
@@ -197,7 +198,68 @@ static void list_draw(ui_control_t *control)
 {
     ui_list_t *list = (ui_list_t *)control;
 
+    list->item_height = list->tf->font->height + BORDER_WIDTH * 2;
+    list->rows = (list->r.height - 2 + list->item_height - 1) / list->item_height;
 
+    list->tf->clip = list->r;
+    list->tf->clip.x += list->d->cr.x + 1;
+    list->tf->clip.y += list->d->cr.y + 1;
+    list->tf->clip.width -= 2;
+    list->tf->clip.height -= 2;
+
+    rect_t r = list->r;
+    r.x += list->d->cr.x;
+    r.y += list->d->cr.y;
+
+    fill_rectangle(fb, r, 0x3186);
+    if (control == control->d->active) {
+        draw_rectangle(fb, r, DRAW_STYLE_SOLID, 0xFFFF);
+    }
+
+    if (list->item_index > list->item_count) {
+        list->item_index = list->item_count - 1;
+    }
+
+    if (list->item_index > list->first_index + list->rows - 1) {
+        list->first_index = list->item_index - list->rows + 1;
+    }
+    if (list->item_index < list->first_index) {
+        list->first_index = list->item_index;
+    }
+    if ( list->item_index < list->first_index + 1) {
+        list->shift = 0;
+    }
+    if (list->item_index > list->first_index + list->rows - 2) {
+        list->shift = list->item_height - (list->r.height - 2) % list->item_height;
+        if (list->shift >= list->item_height) {
+            list->shift = 0;
+        }
+    }
+
+    for (unsigned int row = 0; row < list->rows; row++) {
+        if (row >= list->item_count) {
+            break;
+        }
+        ui_list_item_t *item = &list->items[list->first_index + row];
+
+        rect_t r = list->r;
+        r.x += list->d->cr.x + 1;
+        r.y += list->d->cr.y - list->shift + row * list->item_height + 1;
+        r.width = list->r.width - 2;
+        r.height = list->item_height;
+
+        point_t p = {
+            .x = r.x + BORDER_WIDTH,
+            .y = r.y + r.height/2 - list->tf->font->height/2 + 1,
+        };
+
+        if (list->first_index + row == list->item_index) {
+            fill_rectangle(fb, r, list->selected ? 0x001F : 0x632C);
+        }
+        tf_draw_str(fb, list->tf, item->text, p);
+    }
+
+    control->dirty = true;
 }
 
 static void list_free(ui_control_t *control)
@@ -207,6 +269,7 @@ static void list_free(ui_control_t *control)
     while (list->item_count > 0) {
         ui_list_remove(list, -1);
     }
+    tf_free(list->tf);
     free(list);
 }
 
@@ -231,31 +294,33 @@ static void list_onselect(ui_control_t *control)
             bool dirty = false;
             if (keys.pressed & KEYPAD_UP) {
                 int i;
-                for (i = list->item_index; i >= 0; i--) {
-                    if (list->items[i].onselect) {
+                for (i = list->item_index - 1; i >= 0; i--) {
+                    if (list->items[i].type == LIST_ITEM_TEXT) {
                         break;
                     }
                 }
                 if (i >= 0) {
                     list->item_index = i;
+                    dirty = true;
                 }
             }
 
             if (keys.pressed & KEYPAD_DOWN) {
                 int i;
-                for (i = list->item_index; i < list->item_count; i++) {
-                    if (list->items[i].onselect) {
+                for (i = list->item_index + 1; i < list->item_count; i++) {
+                    if (list->items[i].type == LIST_ITEM_TEXT) {
                         break;
                     }
                 }
                 if (i < list->item_count) {
                     list->item_index = i;
+                    dirty = true;
                 }
             }
 
             if (keys.pressed & KEYPAD_A) {
-                if (list->item_index < list->item_count) {
-                    ui_list_item_t *item = &list->items[list->item_count];
+                if (list->item_index >= 0 && list->item_index < list->item_count) {
+                    ui_list_item_t *item = &list->items[list->item_index];
                     if (item->onselect) {
                         item->onselect(item);
                     }
@@ -294,6 +359,7 @@ ui_list_t *ui_dialog_add_list(ui_dialog_t *d, rect_t r)
     list->draw = list_draw;
     list->onselect = list_onselect;
     list->free = list_free;
+    list->tf = tf_new(&font_OpenSans_Regular_11X12, list->r.width - 2 * BORDER_WIDTH, TF_ELIDE);
 
     ui_dialog_add_control(d, (ui_control_t *)list);
 
@@ -328,7 +394,7 @@ void ui_list_insert_text(ui_list_t *list, int index, char *text, ui_list_item_on
 
 void ui_list_append_text(ui_list_t *list, char *text, ui_list_item_onselect_t onselect)
 {
-    ui_list_insert(list, list->item_count, text, onselect);
+    ui_list_insert_text(list, list->item_count, text, onselect);
 }
 
 void ui_list_remove(ui_list_t *list, int index)
