@@ -94,19 +94,28 @@ void ui_dialog_showmodal(ui_dialog_t *d)
     d->parent = top;
     top = d;
 
+    size_t count = 0;
     for (int i = 0; i < d->controls_size; i++) {
         ui_control_t *control = d->controls[i];
         if (control == NULL) {
             continue;
         }
-        if (!d->active && control->type != CONTROL_LABEL) {
-            d->active = control;
+        if (control->type != CONTROL_LABEL) {
+            count += 1;
+            if (!d->active) {
+                d->active = control;
+            }
         }
         control->draw(control);
         control->dirty = false;
     }
 
     display_update_rect(d->r);
+
+    if (count == 1 && d->active->type == CONTROL_LIST) {
+        d->active->onselect(d->active);
+        d->hide = true;
+    }
 
     keypad_info_t keys;
     while (!d->hide) {
