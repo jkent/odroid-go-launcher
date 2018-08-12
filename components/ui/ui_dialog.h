@@ -39,5 +39,5 @@ void ui_dialog_draw(ui_dialog_t *d);
 void ui_dialog_showmodal(ui_dialog_t *d);
 void ui_dialog_hide(ui_dialog_t *d);
 void ui_dialog_unwind(void);
-void ui_dialog_add(ui_dialog_t *d, ui_control_t *control);
+void ui_dialog_add_control(ui_dialog_t *d, ui_control_t *control);
 ui_control_t *ui_dialog_find_control(ui_dialog_t *d, direction_t dir);

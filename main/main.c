@@ -93,22 +93,22 @@ void app_main(void)
             .width = 240 - 4,
             .height = 16,
         };
-        ui_button_add(d, lr, "button 1", NULL);
+        ui_dialog_add_button(d, lr, "button 1", NULL);
 
         lr.y += 17;
         lr.width = 50;
-        ui_label_add(d, lr, "a label");
+        ui_dialog_add_label(d, lr, "a label");
 
         lr.x = 60;
-        ui_button_add(d, lr, "button2", NULL);
+        ui_dialog_add_button(d, lr, "button2", NULL);
 
         lr.x = 120;
-        ui_button_add(d, lr, "button 3", NULL);
+        ui_dialog_add_button(d, lr, "button 3", NULL);
 
         lr.x = 0;
         lr.y += 17;
         lr.width = 240 - 4;
-        ui_edit_add(d, lr, "edit 1", 64);
+        ui_dialog_add_edit(d, lr, "edit 1", 64);
 
         ui_dialog_showmodal(d);
         ui_dialog_destroy(d);

@@ -180,7 +180,7 @@ void ui_dialog_unwind(void)
     }
 }
 
-void ui_dialog_add(ui_dialog_t *d, ui_control_t *control)
+void ui_dialog_add_control(ui_dialog_t *d, ui_control_t *control)
 {
     for (int i = 0; i < d->controls_size; i++) {
         if (d->controls[i] == NULL) {
