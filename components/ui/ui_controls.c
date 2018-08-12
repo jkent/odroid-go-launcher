@@ -30,7 +30,7 @@ static void button_draw(ui_control_t *control)
     if (button->text) {
         tf_metrics_t m = tf_get_str_metrics(button->tf, button->text);
         point_t p = {
-            .x = button->d->cr.x + button->r.x + 2,
+            .x = button->d->cr.x + button->r.x + BORDER_WIDTH,
             .y = button->d->cr.y + button->r.y + button->r.height/2 - m.height/2 + 1,
         };
         tf_draw_str(fb, button->tf, button->text, p);
@@ -61,7 +61,7 @@ ui_button_t *ui_dialog_add_button(ui_dialog_t *d, rect_t r, const char *text, ui
     button->onselect = onselect;
     button->free = button_free;
     button->text = strdup(text);
-    button->tf = tf_new(&font_OpenSans_Regular_11X12, button->r.width, TF_ELIDE);
+    button->tf = tf_new(&font_OpenSans_Regular_11X12, button->r.width - 2 * BORDER_WIDTH, TF_ELIDE);
 
     ui_dialog_add_control(d, (ui_control_t *)button);
 
@@ -87,7 +87,7 @@ static void edit_draw(ui_control_t *control)
     if (edit->text) {
         tf_metrics_t m = tf_get_str_metrics(edit->tf, edit->text);
         point_t p = {
-            .x = edit->d->cr.x + edit->r.x + 2,
+            .x = edit->d->cr.x + edit->r.x + BORDER_WIDTH,
             .y = edit->d->cr.y + edit->r.y + edit->r.height/2 - m.height/2 + 1,
         };
         tf_draw_str(fb, edit->tf, edit->text, p);
@@ -133,7 +133,7 @@ ui_edit_t *ui_dialog_add_edit(ui_dialog_t *d, rect_t r, const char *text, size_t
     strncpy(edit->text, text, text_len);
     edit->text[text_len - 1] = '\0';
     edit->text_len = text_len;
-    edit->tf = tf_new(&font_OpenSans_Regular_11X12, edit->r.width, TF_ELIDE);
+    edit->tf = tf_new(&font_OpenSans_Regular_11X12, edit->r.width - 2 * BORDER_WIDTH, TF_ELIDE);
 
     ui_dialog_add_control(d, (ui_control_t *)edit);
 
@@ -154,7 +154,7 @@ static void label_draw(ui_control_t *control)
     if (label->text) {
         tf_metrics_t m = tf_get_str_metrics(label->tf, label->text);
         point_t p = {
-            .x = label->d->cr.x + label->r.x,
+            .x = label->d->cr.x + label->r.x + BORDER_WIDTH,
             .y = label->d->cr.y + label->r.y + label->r.height/2 - m.height/2,
         };
         tf_draw_str(fb, label->tf, label->text, p);
@@ -184,7 +184,7 @@ ui_label_t *ui_dialog_add_label(ui_dialog_t *d, rect_t r, const char *text)
     label->draw = label_draw;
     label->free = label_free;
     label->text = strdup(text);
-    label->tf = tf_new(&font_OpenSans_Regular_11X12, label->r.width, TF_ELIDE);
+    label->tf = tf_new(&font_OpenSans_Regular_11X12, label->r.width - 2 * BORDER_WIDTH, TF_ELIDE);
 
     ui_dialog_add_control(d, (ui_control_t *)label);
 
