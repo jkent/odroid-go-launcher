@@ -132,4 +132,6 @@ typedef struct ui_list_t {
 ui_list_t *ui_dialog_add_list(ui_dialog_t *d, rect_t r);
 void ui_list_insert_text(ui_list_t *list, int index, char *text, ui_list_item_onselect_t onselect);
 void ui_list_append_text(ui_list_t *list, char *text, ui_list_item_onselect_t onselect);
+void ui_list_insert_separator(ui_list_t *list, int index);
+void ui_list_append_separator(ui_list_t *list);
 void ui_list_remove(ui_list_t *list, int index);

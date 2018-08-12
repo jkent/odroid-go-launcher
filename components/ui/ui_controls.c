@@ -256,7 +256,24 @@ static void list_draw(ui_control_t *control)
         if (list->first_index + row == list->item_index) {
             fill_rectangle(fb, r, list->selected ? 0x001F : 0x632C);
         }
-        tf_draw_str(fb, list->tf, item->text, p);
+        switch (item->type) {
+            case LIST_ITEM_TEXT:
+                tf_draw_str(fb, list->tf, item->text, p);
+                break;
+
+            case LIST_ITEM_SEPARATOR: {
+                point_t start = {
+                    .x = r.x + BORDER_WIDTH,
+                    .y = r.y + list->item_height / 2,
+                };
+                point_t end = {
+                    .x = r.x + r.width - 1 - BORDER_WIDTH,
+                    .y = r.y + list->item_height / 2,
+                };
+                draw_line(fb, start, end, DRAW_STYLE_SOLID, 0xFFFF);
+                break;
+            }
+        }
     }
 
     control->dirty = true;
@@ -395,6 +412,17 @@ void ui_list_insert_text(ui_list_t *list, int index, char *text, ui_list_item_on
 void ui_list_append_text(ui_list_t *list, char *text, ui_list_item_onselect_t onselect)
 {
     ui_list_insert_text(list, list->item_count, text, onselect);
+}
+
+void ui_list_insert_separator(ui_list_t *list, int index)
+{
+    ui_list_item_t *item = list_insert_new(list, index);
+    item->type = LIST_ITEM_SEPARATOR;
+}
+
+void ui_list_append_separator(ui_list_t *list)
+{
+    ui_list_insert_separator(list, list->item_count);
 }
 
 void ui_list_remove(ui_list_t *list, int index)

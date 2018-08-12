@@ -118,6 +118,7 @@ void app_main(void)
         ui_list_append_text(list, "Line 3", NULL);
         ui_list_append_text(list, "Line 4", NULL);
         ui_list_append_text(list, "Line 5", NULL);
+        ui_list_append_separator(list);
         ui_list_append_text(list, "Line 6", NULL);
         ui_list_append_text(list, "Line 7", NULL);
         ui_list_append_text(list, "Line 8", NULL);
