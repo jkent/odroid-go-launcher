@@ -111,7 +111,7 @@ void app_main(void)
         ui_dialog_add_edit(d, lr, "edit 1", 64);
 
         lr.y += 17;
-        lr.height = 75;
+        lr.height = 80;
         ui_list_t *list = ui_dialog_add_list(d, lr);
         ui_list_append_text(list, "This is some text", NULL);
         ui_list_append_text(list, "This is also some text", NULL);

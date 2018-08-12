@@ -9,6 +9,7 @@
 #include "ui_dialog.h"
 #include "ui_osk.h"
 
+#define BORDER (1)
 #define PADDING (2)
 
 
@@ -19,13 +20,17 @@ static void button_draw(ui_control_t *control)
     ui_button_t *button = (ui_button_t *)control;
 
     button->tf->clip = button->r;
-    button->tf->clip.x += button->d->cr.x;
-    button->tf->clip.y += button->d->cr.y;
+    button->tf->clip.x += button->d->cr.x + BORDER;
+    button->tf->clip.y += button->d->cr.y + BORDER;
+    button->tf->clip.width -= 2*BORDER;
+    button->tf->clip.height -= 2*BORDER;
+
+    rect_t rb = button->r;
+    rb.x += button->d->cr.x;
+    rb.y += button->d->cr.y;
 
     fill_rectangle(fb, button->tf->clip, 0x632C);
-    if (control == control->d->active) {
-        draw_rectangle(fb, button->tf->clip, DRAW_STYLE_SOLID, 0xFFFF);
-    }
+    draw_rectangle(fb, rb, DRAW_STYLE_SOLID, control == control->d->active ? 0xFFFF : 0x0000);
 
     if (button->text) {
         tf_metrics_t m = tf_get_str_metrics(button->tf, button->text);
@@ -76,13 +81,17 @@ static void edit_draw(ui_control_t *control)
     ui_edit_t *edit = (ui_edit_t *)control;
 
     edit->tf->clip = edit->r;
-    edit->tf->clip.x += edit->d->cr.x;
-    edit->tf->clip.y += edit->d->cr.y;
+    edit->tf->clip.x += edit->d->cr.x + BORDER;
+    edit->tf->clip.y += edit->d->cr.y + BORDER;
+    edit->tf->clip.width -= 2*BORDER;
+    edit->tf->clip.height -= 2*BORDER;
+
+    rect_t rb = edit->r;
+    rb.x += edit->d->cr.x;
+    rb.y += edit->d->cr.y;
 
     fill_rectangle(fb, edit->tf->clip, 0x3186);
-    if (control == control->d->active) {
-        draw_rectangle(fb, edit->tf->clip, DRAW_STYLE_SOLID, 0xFFFF);
-    }
+    draw_rectangle(fb, rb, DRAW_STYLE_SOLID, control == control->d->active ? 0xFFFF : 0x0000);
 
     if (edit->text) {
         tf_metrics_t m = tf_get_str_metrics(edit->tf, edit->text);
@@ -198,23 +207,21 @@ static void list_draw(ui_control_t *control)
 {
     ui_list_t *list = (ui_list_t *)control;
 
-    list->item_height = list->tf->font->height + PADDING * 2;
-    list->rows = (list->r.height - 2 + list->item_height - 1) / list->item_height;
+    list->item_height = list->tf->font->height + 2*PADDING;
+    list->rows = (list->r.height - 2*BORDER + list->item_height - 1) / list->item_height;
 
     list->tf->clip = list->r;
-    list->tf->clip.x += list->d->cr.x + 1;
-    list->tf->clip.y += list->d->cr.y + 1;
-    list->tf->clip.width -= 2;
-    list->tf->clip.height -= 2;
+    list->tf->clip.x += list->d->cr.x + BORDER;
+    list->tf->clip.y += list->d->cr.y + BORDER;
+    list->tf->clip.width -= 2*BORDER;
+    list->tf->clip.height -= 2*BORDER;
 
-    rect_t r = list->r;
-    r.x += list->d->cr.x;
-    r.y += list->d->cr.y;
+    rect_t rb = list->r;
+    rb.x += list->d->cr.x;
+    rb.y += list->d->cr.y;
 
-    fill_rectangle(fb, r, 0x3186);
-    if (control == control->d->active) {
-        draw_rectangle(fb, r, DRAW_STYLE_SOLID, 0xFFFF);
-    }
+    fill_rectangle(fb, list->tf->clip, 0x3186);
+    draw_rectangle(fb, rb, DRAW_STYLE_SOLID, control == control->d->active ? 0xFFFF : 0x0000);
 
     if (list->item_index > list->item_count) {
         list->item_index = list->item_count - 1;
@@ -229,8 +236,8 @@ static void list_draw(ui_control_t *control)
     if ( list->item_index < list->first_index + 1) {
         list->shift = 0;
     }
-    if (list->item_index > list->first_index + list->rows - 2) {
-        list->shift = list->item_height - (list->r.height - 2) % list->item_height;
+    if (list->item_index >= list->first_index + list->rows - 1) {
+        list->shift = list->item_height - (list->r.height - 2*BORDER) % list->item_height;
         if (list->shift >= list->item_height) {
             list->shift = 0;
         }
@@ -243,9 +250,9 @@ static void list_draw(ui_control_t *control)
         ui_list_item_t *item = &list->items[list->first_index + row];
 
         rect_t r = list->r;
-        r.x += list->d->cr.x + 1;
-        r.y += list->d->cr.y - list->shift + row * list->item_height + 1;
-        r.width = list->r.width - 2;
+        r.x += list->d->cr.x + BORDER;
+        r.y += list->d->cr.y - list->shift + row * list->item_height + BORDER;
+        r.width = list->r.width - 2*BORDER;
         r.height = list->item_height;
 
         point_t p = {
@@ -270,7 +277,9 @@ static void list_draw(ui_control_t *control)
                     .x = r.x + r.width - 1 - PADDING,
                     .y = r.y + list->item_height/2,
                 };
-                draw_line(fb, start, end, DRAW_STYLE_SOLID, 0xFFFF);
+                if (start.y < list->d->cr.y + list->r.y + list->r.height - 2*BORDER - 1) {
+                    draw_line(fb, start, end, DRAW_STYLE_SOLID, 0xFFFF);
+                }
                 break;
             }
         }
