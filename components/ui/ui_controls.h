@@ -94,7 +94,7 @@ ui_label_t *ui_dialog_add_label(ui_dialog_t *d, rect_t r, const char *text);
 
 typedef struct ui_list_t ui_list_t;
 typedef struct ui_list_item_t ui_list_item_t;
-typedef void (*ui_list_item_onselect_t)(ui_list_item_t *item);
+typedef void (*ui_list_item_onselect_t)(ui_list_item_t *item, int index);
 
 typedef enum {
     LIST_ITEM_TEXT,

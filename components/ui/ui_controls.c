@@ -357,7 +357,7 @@ static void list_onselect(ui_control_t *control)
                 if (list->item_index >= 0 && list->item_index < list->item_count) {
                     ui_list_item_t *item = &list->items[list->item_index];
                     if (item->onselect) {
-                        item->onselect(item);
+                        item->onselect(item, list->item_index);
                     }
                 }
             }
