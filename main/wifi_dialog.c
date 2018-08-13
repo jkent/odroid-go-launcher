@@ -132,7 +132,11 @@ static void wifi_configuration_add_dialog(ui_list_item_t *item, void *arg)
         for (int i = 0; i < s_scan_records_len; i++) {
             free(s_scan_records[i]);
         }
-        free(s_scan_records);
+        if (s_scan_records) {
+            free(s_scan_records);
+        }
+        s_scan_records = NULL;
+        s_scan_records_len = 0;
     }
 }
 
