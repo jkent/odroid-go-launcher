@@ -326,7 +326,6 @@ static void list_onselect(ui_control_t *control)
     keypad_info_t keys;
     while (!list->hide) {
         if (keypad_queue_receive(list->d->keypad, &keys, 50/portTICK_RATE_MS)) {
-            list->dirty = false;
             if (keys.pressed & KEYPAD_UP) {
                 int i;
                 for (i = list->item_index - 1; i >= 0; i--) {
@@ -370,12 +369,11 @@ static void list_onselect(ui_control_t *control)
                 ui_dialog_unwind();
                 break;
             }
-
-            if (list->dirty) {
-                list->draw(control);
-                display_update_rect(r);
-                list->dirty = false;
-            }
+        }
+        if (list->dirty) {
+            list->draw(control);
+            display_update_rect(r);
+            list->dirty = false;
         }
         periodic_tick();
     }
@@ -429,6 +427,7 @@ void ui_list_insert_text(ui_list_t *list, int index, char *text, ui_list_item_on
     item->text = strdup(text);
     item->onselect = onselect;
     item->arg = arg;
+    list->dirty = true;
 }
 
 void ui_list_append_text(ui_list_t *list, char *text, ui_list_item_onselect_t onselect, void *arg)
