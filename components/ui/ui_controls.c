@@ -213,8 +213,8 @@ static void list_draw(ui_control_t *control)
 {
     ui_list_t *list = (ui_list_t *)control;
 
-    list->item_height = list->tf->font->height + 2*ui_theme->padding;
-    list->rows = (list->r.height - 2*BORDER + list->item_height - 1) / list->item_height;
+    int item_height = list->tf->font->height + 2*ui_theme->padding;
+    int rows = (list->r.height - 2*BORDER + item_height - 1) / item_height;
 
     list->tf->clip = list->r;
     list->tf->clip.x += list->d->cr.x + BORDER;
@@ -236,8 +236,8 @@ static void list_draw(ui_control_t *control)
         list->item_index = list->item_count - 1;
     }
 
-    if (list->item_index > list->first_index + list->rows - 1) {
-        list->first_index = list->item_index - list->rows + 1;
+    if (list->item_index > list->first_index + rows - 1) {
+        list->first_index = list->item_index - rows + 1;
     }
     if (list->item_index < list->first_index) {
         list->first_index = list->item_index;
@@ -245,14 +245,14 @@ static void list_draw(ui_control_t *control)
     if ( list->item_index < list->first_index + 1) {
         list->shift = 0;
     }
-    if (list->item_index >= list->first_index + list->rows - 1) {
-        list->shift = list->item_height - (list->r.height - 2*BORDER) % list->item_height;
-        if (list->shift >= list->item_height) {
+    if (list->item_index >= list->first_index + rows - 1) {
+        list->shift = item_height - (list->r.height - 2*BORDER) % item_height;
+        if (list->shift >= item_height) {
             list->shift = 0;
         }
     }
 
-    for (unsigned int row = 0; row < list->rows; row++) {
+    for (unsigned int row = 0; row < rows; row++) {
         if (row >= list->item_count) {
             break;
         }
@@ -260,9 +260,9 @@ static void list_draw(ui_control_t *control)
 
         rect_t r = list->r;
         r.x += list->d->cr.x + BORDER + 1;
-        r.y += list->d->cr.y - list->shift + row * list->item_height + BORDER + 1;
+        r.y += list->d->cr.y - list->shift + row * item_height + BORDER + 1;
         r.width = list->r.width - 2*BORDER - 2;
-        r.height = list->item_height - 2;
+        r.height = item_height - 2;
 
         point_t p = {
             .x = r.x + ui_theme->padding,
@@ -280,11 +280,11 @@ static void list_draw(ui_control_t *control)
             case LIST_ITEM_SEPARATOR: {
                 point_t start = {
                     .x = r.x + ui_theme->padding,
-                    .y = r.y + list->item_height/2,
+                    .y = r.y + item_height/2,
                 };
                 point_t end = {
                     .x = r.x + r.width - 1 - ui_theme->padding,
-                    .y = r.y + list->item_height/2,
+                    .y = r.y + item_height/2,
                 };
                 if (start.y < list->d->cr.y + list->r.y + list->r.height - 2*BORDER - 1) {
                     draw_line(fb, start, end, DRAW_STYLE_SOLID, ui_theme->text_color);

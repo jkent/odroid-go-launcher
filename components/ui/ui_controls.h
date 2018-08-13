@@ -123,10 +123,8 @@ typedef struct ui_list_t {
     ui_list_item_t *items;
     size_t item_count;
     int item_index;
-    int rows;
     int first_index;
     int shift;
-    int item_height;
 } ui_list_t;
 
 ui_list_t *ui_dialog_add_list(ui_dialog_t *d, rect_t r);
