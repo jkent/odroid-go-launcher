@@ -7,7 +7,7 @@
 #include "display.h"
 #include "keypad.h"
 #include "OpenSans_Regular_11X12.h"
-#include "statusbar.h"
+#include "periodic.h"
 #include "ui_dialog.h"
 #include "ui_osk.h"
 #include "ui_theme.h"
@@ -322,7 +322,7 @@ bool ui_osk_showmodal(ui_osk_t *osk)
                 display_update_rect(osk->r);
             }
         }
-        statusbar_update();
+        periodic_tick();
     }
 
     blit(fb, osk->r, osk->g, r);

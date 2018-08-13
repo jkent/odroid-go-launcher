@@ -7,6 +7,7 @@
 
 #include "OpenSans_Regular_11X12.h"
 #include "icons_16X16.h"
+#include "periodic.h"
 #include "statusbar.h"
 #include "tf.h"
 #include "wifi.h"
@@ -36,18 +37,7 @@ static int rssi_to_bars(int rssi, int levels)
     }
 }
 
-void statusbar_init(void)
-{
-    s_icons = tf_new(&font_icons_16X16, 0xFFFF, 0, 0);
-    s_rect.x = 0;
-    s_rect.y = 0;
-    s_rect.width = DISPLAY_WIDTH;
-    s_rect.height = STATUSBAR_HEIGHT;
-
-    statusbar_update();
-}
-
-void statusbar_update(void)
+static void statusbar_update(periodic_handle_t handle, void *arg)
 {
     int wifi_bars = 0;
     if (wifi_enabled && wifi_connected) {
@@ -87,4 +77,16 @@ void statusbar_update(void)
     p.x -= 16;
 
     display_update_rect(s_rect);
+}
+
+void statusbar_init(void)
+{
+    s_icons = tf_new(&font_icons_16X16, 0xFFFF, 0, 0);
+    s_rect.x = 0;
+    s_rect.y = 0;
+    s_rect.width = DISPLAY_WIDTH;
+    s_rect.height = STATUSBAR_HEIGHT;
+
+    statusbar_update(NULL, NULL);
+    periodic_register(250/portTICK_PERIOD_MS, statusbar_update, NULL);
 }

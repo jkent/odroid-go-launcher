@@ -3,7 +3,7 @@
 #include "display.h"
 #include "keypad.h"
 #include "OpenSans_Regular_11X12.h"
-#include "statusbar.h"
+#include "periodic.h"
 #include "tf.h"
 #include "ui_controls.h"
 #include "ui_dialog.h"
@@ -325,7 +325,7 @@ static void list_onselect(ui_control_t *control)
 
     keypad_info_t keys;
     while (true) {
-        if (keypad_queue_receive(list->d->keypad, &keys, 250 / portTICK_RATE_MS)) {
+        if (keypad_queue_receive(list->d->keypad, &keys, 50/portTICK_RATE_MS)) {
             bool dirty = false;
             if (keys.pressed & KEYPAD_UP) {
                 int i;
@@ -376,7 +376,7 @@ static void list_onselect(ui_control_t *control)
                 display_update_rect(r);
             }
         }
-        statusbar_update();
+        periodic_tick();
     }
 
     list->selected = false;

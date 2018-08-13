@@ -6,7 +6,7 @@
 #include "gbuf.h"
 
 #include "OpenSans_Regular_11X12.h"
-#include "statusbar.h"
+#include "periodic.h"
 #include "tf.h"
 #include "ui_dialog.h"
 #include "ui_theme.h"
@@ -125,7 +125,7 @@ void ui_dialog_showmodal(ui_dialog_t *d)
 
     keypad_info_t keys;
     while (!d->hide) {
-        if (keypad_queue_receive(d->keypad, &keys, 250 / portTICK_RATE_MS)) {
+        if (keypad_queue_receive(d->keypad, &keys, 50/portTICK_RATE_MS)) {
             if (keys.pressed & KEYPAD_MENU) {
                 ui_dialog_unwind();
             }
@@ -171,7 +171,7 @@ void ui_dialog_showmodal(ui_dialog_t *d)
                 display_update_rect(d->r);
             }
         }
-        statusbar_update();
+        periodic_tick();
     }
 
     blit(fb, d->r, d->g, r);

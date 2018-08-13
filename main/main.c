@@ -19,6 +19,7 @@
 #include "graphics.h"
 #include "tf.h"
 #include "OpenSans_Regular_11X12.h"
+#include "periodic.h"
 #include "statusbar.h"
 #include "ui_dialog.h"
 
@@ -70,12 +71,12 @@ void app_main(void)
     while (true) {
         keypad_info_t keys;
         while (true) {
-            if (keypad_queue_receive(keypad, &keys, 250 / portTICK_RATE_MS)) {
+            if (keypad_queue_receive(keypad, &keys, 50/portTICK_RATE_MS)) {
                 if (keys.pressed & KEYPAD_MENU) {
                     break;
                 }
             }
-            statusbar_update();
+            periodic_tick();
         }
 
         rect_t r = {
