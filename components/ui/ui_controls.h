@@ -5,7 +5,7 @@
 
 #include "ui_dialog.h"
 #include "graphics.h"
-
+#include "tf.h"
 
 typedef struct ui_dialog_t ui_dialog_t;
 typedef struct ui_control_t ui_control_t;
@@ -27,6 +27,7 @@ typedef struct ui_control_t {
     rect_t r;
     tf_t *tf;
     bool dirty;
+    bool hide;
     ui_control_draw_t draw;
     ui_control_onselect_t onselect;
     ui_control_free_t free;
@@ -41,6 +42,7 @@ typedef struct ui_button_t {
     rect_t r;
     tf_t *tf;
     bool dirty;
+    bool hide;
     ui_control_draw_t draw;
     ui_control_onselect_t onselect;
     ui_control_free_t free;
@@ -59,6 +61,7 @@ typedef struct ui_edit_t {
     rect_t r;
     tf_t *tf;
     bool dirty;
+    bool hide;
     ui_control_draw_t draw;
     ui_control_onselect_t onselect;
     ui_control_free_t free;
@@ -80,6 +83,7 @@ typedef struct ui_label_t {
     rect_t r;
     tf_t *tf;
     bool dirty;
+    bool hide;
     ui_control_draw_t draw;
     ui_control_onselect_t onselect;
     ui_control_free_t free;
@@ -94,20 +98,7 @@ ui_label_t *ui_dialog_add_label(ui_dialog_t *d, rect_t r, const char *text);
 
 typedef struct ui_list_t ui_list_t;
 typedef struct ui_list_item_t ui_list_item_t;
-typedef void (*ui_list_item_onselect_t)(ui_list_item_t *item, int index);
-
-typedef enum {
-    LIST_ITEM_TEXT,
-    LIST_ITEM_SEPARATOR,
-} ui_list_item_type_t;
-
-typedef struct ui_list_item_t {
-    ui_list_item_type_t type;
-    ui_list_t *list;
-    const char *text;
-    int value;
-    ui_list_item_onselect_t onselect;
-} ui_list_item_t;
+typedef void (*ui_list_item_onselect_t)(ui_list_item_t *item, void *arg);
 
 typedef struct ui_list_t {
     ui_control_type_t type;
@@ -115,6 +106,7 @@ typedef struct ui_list_t {
     rect_t r;
     tf_t *tf;
     bool dirty;
+    bool hide;
     ui_control_draw_t draw;
     ui_control_onselect_t onselect;
     ui_control_free_t free;
@@ -127,9 +119,22 @@ typedef struct ui_list_t {
     int shift;
 } ui_list_t;
 
+typedef enum {
+    LIST_ITEM_TEXT,
+    LIST_ITEM_SEPARATOR,
+} ui_list_item_type_t;
+
+typedef struct ui_list_item_t {
+    ui_list_item_type_t type;
+    ui_list_t *list;
+    const char *text;
+    void *arg;
+    ui_list_item_onselect_t onselect;
+} ui_list_item_t;
+
 ui_list_t *ui_dialog_add_list(ui_dialog_t *d, rect_t r);
-void ui_list_insert_text(ui_list_t *list, int index, char *text, ui_list_item_onselect_t onselect);
-void ui_list_append_text(ui_list_t *list, char *text, ui_list_item_onselect_t onselect);
+void ui_list_insert_text(ui_list_t *list, int index, char *text, ui_list_item_onselect_t onselect, void *arg);
+void ui_list_append_text(ui_list_t *list, char *text, ui_list_item_onselect_t onselect, void *arg);
 void ui_list_insert_separator(ui_list_t *list, int index);
 void ui_list_append_separator(ui_list_t *list);
 void ui_list_remove(ui_list_t *list, int index);

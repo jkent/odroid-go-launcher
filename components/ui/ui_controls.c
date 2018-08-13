@@ -324,7 +324,7 @@ static void list_onselect(ui_control_t *control)
     display_update_rect(r);
 
     keypad_info_t keys;
-    while (true) {
+    while (!list->hide) {
         if (keypad_queue_receive(list->d->keypad, &keys, 50/portTICK_RATE_MS)) {
             bool dirty = false;
             if (keys.pressed & KEYPAD_UP) {
@@ -357,7 +357,7 @@ static void list_onselect(ui_control_t *control)
                 if (list->item_index >= 0 && list->item_index < list->item_count) {
                     ui_list_item_t *item = &list->items[list->item_index];
                     if (item->onselect) {
-                        item->onselect(item, list->item_index);
+                        item->onselect(item, item->arg);
                     }
                 }
             }
@@ -420,22 +420,26 @@ static struct ui_list_item_t *list_insert_new(ui_list_t *list, int index)
     return &list->items[index];
 }
 
-void ui_list_insert_text(ui_list_t *list, int index, char *text, ui_list_item_onselect_t onselect)
+void ui_list_insert_text(ui_list_t *list, int index, char *text, ui_list_item_onselect_t onselect, void *arg)
 {
     ui_list_item_t *item = list_insert_new(list, index);
     item->type = LIST_ITEM_TEXT;
+    item->list = list;
     item->text = strdup(text);
+    item->onselect = onselect;
+    item->arg = arg;
 }
 
-void ui_list_append_text(ui_list_t *list, char *text, ui_list_item_onselect_t onselect)
+void ui_list_append_text(ui_list_t *list, char *text, ui_list_item_onselect_t onselect, void *arg)
 {
-    ui_list_insert_text(list, list->item_count, text, onselect);
+    ui_list_insert_text(list, list->item_count, text, onselect, arg);
 }
 
 void ui_list_insert_separator(ui_list_t *list, int index)
 {
     ui_list_item_t *item = list_insert_new(list, index);
     item->type = LIST_ITEM_SEPARATOR;
+    item->list = list;
 }
 
 void ui_list_append_separator(ui_list_t *list)

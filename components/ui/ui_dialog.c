@@ -26,6 +26,7 @@ ui_dialog_t *ui_dialog_new(ui_dialog_t *parent, rect_t r, const char *title)
     if (title) {
         d->title = strdup(title);
     }
+    ui_dialog_layout(d);
     return d;
 }
 
@@ -38,25 +39,40 @@ void ui_dialog_destroy(ui_dialog_t *d)
         }
     }
     gbuf_free(d->g);
+    if (d->tf) {
+        tf_free(d->tf);
+    }
     free(d);
+}
+
+void ui_dialog_layout(ui_dialog_t *d)
+{
+    d->cr.x = d->r.x + 1;
+    d->cr.y = d->r.y + 1;
+    d->cr.width = d->r.width - 2;
+    d->cr.height = d->r.height - 2;
+
+    if (d->title) {
+        if (!d->tf) {
+            d->tf = tf_new(ui_theme->font, ui_theme->text_color, d->cr.width - 2, TF_ALIGN_CENTER | TF_ELIDE);
+        }
+        tf_metrics_t m = tf_get_str_metrics(d->tf, d->title);
+        d->cr.y += m.height + 2*ui_theme->padding + 1;
+        d->cr.height -= m.height + 2 * ui_theme->padding + 1;
+    }
 }
 
 void ui_dialog_draw(ui_dialog_t *d)
 {
     assert(d->visible);
 
-    d->cr.x = d->r.x + 1;
-    d->cr.y = d->r.y + 1;
-    d->cr.width = d->r.width - 2;
-    d->cr.height = d->r.height - 2;
-
     fill_rectangle(fb, d->r, ui_theme->window_color);
     draw_rectangle3d(fb, d->r, ui_theme->border3d_light_color, ui_theme->border3d_dark_color);
 
     if (d->title) {
-        tf_t *tf = tf_new(&font_OpenSans_Regular_11X12, ui_theme->text_color, d->cr.width - 2, TF_ALIGN_CENTER | TF_ELIDE);
-        tf_metrics_t m = tf_get_str_metrics(tf, d->title);
+        tf_metrics_t m = tf_get_str_metrics(d->tf, d->title);
         rect_t r = d->cr;
+        r.y = d->r.y + 1;
         r.height = m.height + 2*ui_theme->padding;
         fill_rectangle(fb, r, ui_theme->active_highlight_color);
 
@@ -74,10 +90,7 @@ void ui_dialog_draw(ui_dialog_t *d)
             .x = d->r.x + ui_theme->padding,
             .y = d->r.y + ui_theme->padding + 1,
         };
-        tf_draw_str(fb, tf, d->title, p);
-
-        d->cr.y += m.height + 2*ui_theme->padding + 1;
-        d->cr.height -= m.height + 2 * ui_theme->padding + 1;
+        tf_draw_str(fb, d->tf, d->title, p);
     }
 }
 
@@ -116,11 +129,14 @@ void ui_dialog_showmodal(ui_dialog_t *d)
         control->dirty = false;
     }
 
-    display_update_rect(d->r);
-
     if (count == 1 && d->active->type == CONTROL_LIST) {
+        ((ui_list_t *)d->active)->selected = true;
+        d->active->draw(d->active);
+        display_update_rect(d->r);
         d->active->onselect(d->active);
         d->hide = true;
+    } else {
+        display_update_rect(d->r);
     }
 
     keypad_info_t keys;
@@ -128,6 +144,7 @@ void ui_dialog_showmodal(ui_dialog_t *d)
         if (keypad_queue_receive(d->keypad, &keys, 50/portTICK_RATE_MS)) {
             if (keys.pressed & KEYPAD_MENU) {
                 ui_dialog_unwind();
+                break;
             }
 
             ui_control_t *new_active = NULL;
@@ -148,7 +165,7 @@ void ui_dialog_showmodal(ui_dialog_t *d)
                 new_active->draw(new_active);
             }
 
-            if (keys.pressed & KEYPAD_A && d->active->onselect) {
+            if (keys.pressed & KEYPAD_A && d->active && d->active->onselect) {
                 d->active->onselect(d->active);
             }
 
@@ -191,6 +208,9 @@ void ui_dialog_unwind(void)
     ui_dialog_t *d = top;
     while (d) {
         d->hide = true;
+        if (d->active) {
+            d->active->hide = true;
+        }
         d = d->parent;
     }
 }

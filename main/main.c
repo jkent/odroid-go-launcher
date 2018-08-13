@@ -16,12 +16,14 @@
 #include "wifi.h"
 
 #include "app.h"
+#include "app_dialog.h"
 #include "graphics.h"
 #include "tf.h"
 #include "OpenSans_Regular_11X12.h"
 #include "periodic.h"
 #include "statusbar.h"
 #include "ui_dialog.h"
+#include "wifi_dialog.h"
 
 
 void app_main(void)
@@ -86,44 +88,17 @@ void app_main(void)
             .height = 180,
         };
         
-        ui_dialog_t *d = ui_dialog_new(NULL, r, "The quick brown fox jumps over the lazy dog.");
+        ui_dialog_t *d = ui_dialog_new(NULL, r, NULL);
         d->keypad = keypad;
         rect_t lr = {
             .x = 0,
             .y = 0,
-            .width = 240 - 4,
-            .height = 16,
+            .width = 240 - 2,
+            .height = 180 - 2,
         };
-        ui_dialog_add_button(d, lr, "button 1", NULL);
-
-        lr.y += 17;
-        lr.width = 50;
-        ui_dialog_add_label(d, lr, "a label");
-
-        lr.x = 60;
-        ui_dialog_add_button(d, lr, "button2", NULL);
-
-        lr.x = 120;
-        ui_dialog_add_button(d, lr, "button 3", NULL);
-
-        lr.x = 0;
-        lr.y += 17;
-        lr.width = 240 - 4;
-        ui_dialog_add_edit(d, lr, "edit 1", 64);
-
-        lr.y += 17;
-        lr.height = 80;
         ui_list_t *list = ui_dialog_add_list(d, lr);
-        ui_list_append_text(list, "This is some text", NULL);
-        ui_list_append_text(list, "This is also some text", NULL);
-        ui_list_append_text(list, "Line 3", NULL);
-        ui_list_append_text(list, "Line 4", NULL);
-        ui_list_append_text(list, "Line 5", NULL);
-        ui_list_append_separator(list);
-        ui_list_append_text(list, "Line 6", NULL);
-        ui_list_append_text(list, "Line 7", NULL);
-        ui_list_append_text(list, "Line 8", NULL);
-
+        ui_list_append_text(list, "App List", app_list_dialog, NULL);
+        ui_list_append_text(list, "Wi-Fi Configuration", wifi_configuration_dialog, NULL);
         ui_dialog_showmodal(d);
         ui_dialog_destroy(d);
     }

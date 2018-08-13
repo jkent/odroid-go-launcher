@@ -7,6 +7,7 @@
 
 #include "ui_controls.h"
 #include "graphics.h"
+#include "tf.h"
 
 
 typedef struct ui_dialog_t ui_dialog_t;
@@ -23,6 +24,7 @@ typedef struct ui_dialog_t {
     ui_dialog_t *parent;
     rect_t r;
     gbuf_t *g;
+    tf_t *tf;
     QueueHandle_t keypad;
     const char *title;
     rect_t cr;
@@ -34,6 +36,7 @@ typedef struct ui_dialog_t {
 } ui_dialog_t;
 
 ui_dialog_t *ui_dialog_new(ui_dialog_t *parent, rect_t r, const char *title);
+void ui_dialog_layout(ui_dialog_t *d);
 void ui_dialog_destroy(ui_dialog_t *d);
 void ui_dialog_draw(ui_dialog_t *d);
 void ui_dialog_showmodal(ui_dialog_t *d);
