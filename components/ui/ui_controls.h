@@ -127,7 +127,7 @@ typedef enum {
 typedef struct ui_list_item_t {
     ui_list_item_type_t type;
     ui_list_t *list;
-    const char *text;
+    char *text;
     void *arg;
     ui_list_item_onselect_t onselect;
 } ui_list_item_t;

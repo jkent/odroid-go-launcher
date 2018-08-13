@@ -1,5 +1,107 @@
+#include <string.h>
+
+#include "app.h"
 #include "display.h"
 #include "ui_dialog.h"
+
+
+static struct app_info_t *s_app_info = NULL;
+static size_t s_app_count = 0;
+
+static void app_popup_install(ui_list_item_t *item, void *arg)
+{
+    struct app_info_t *info = (struct app_info_t *)arg;
+
+    app_install(info->name, info->slot_num);
+    item->list->hide = true;
+}
+
+static void app_popup_run(ui_list_item_t *item, void *arg)
+{
+    struct app_info_t *info = (struct app_info_t *)arg;
+
+    app_run(info->name, false);
+    item->list->hide = true;
+}
+
+static void app_popup_uninstall(ui_list_item_t *item, void *arg)
+{
+    struct app_info_t *info = (struct app_info_t *)arg;
+
+    app_uninstall(info->name);
+    item->list->hide = true;
+}
+
+static void app_list_select(ui_list_item_t *item, void *arg)
+{
+    struct app_info_t *info = (struct app_info_t *)arg;
+
+    rect_t r = {
+        .x = fb->width/2 - 120/2,
+        .y = fb->height/2 - 90/2,
+        .width = 120,
+        .height = 90,
+    };
+    ui_dialog_t *d = ui_dialog_new(item->list->d, r, NULL);
+
+    rect_t lr = {
+        .x = 0,
+        .y = 0,
+        .width = d->cr.width,
+        .height = d->cr.height,
+    };
+    ui_list_t *list = ui_dialog_add_list(d, lr);
+    if (!info->installed && info->available) {
+        ui_list_append_text(list, "Install", app_popup_install, info);
+    }
+    if (info->installed || info->available) {
+        ui_list_append_text(list, "Run", app_popup_run, info);
+    }
+    if (info->installed) {
+        ui_list_append_text(list, "Uninstall", app_popup_uninstall, info);
+    }
+    if (info->installed && info->upgradable) {
+        ui_list_append_text(list, "Upgrade", app_popup_install, info);
+    }
+    ui_dialog_showmodal(d);
+    ui_dialog_destroy(d);
+
+    char buf[269];
+    strcpy(buf, info->name);
+    app_info(buf, info);
+    if (info->installed && info->upgradable) {
+        snprintf(buf, sizeof(buf), "%s [Upgradable]", info->name);
+    } else if (info->installed) {
+        snprintf(buf, sizeof(buf), "%s [Installed]", info->name); 
+    }
+    free(item->text);
+    item->text = strdup(buf);
+    item->list->dirty = true;
+}
+
+static void fill_app_list(ui_list_t *list)
+{
+    while (list->item_count > 0) {
+        ui_list_remove(list, -1);
+    }
+
+    if (s_app_info) {
+        free(s_app_info);
+    }
+    s_app_info = app_enumerate(&s_app_count);
+
+    for (int i = 0; i < s_app_count; i++) {
+        char buf[269];
+        if (s_app_info[i].installed && s_app_info[i].upgradable) {
+            snprintf(buf, sizeof(buf), "%s [Upgradable]", s_app_info[i].name);
+        } else if (s_app_info[i].installed) {
+            snprintf(buf, sizeof(buf), "%s [Installed]", s_app_info[i].name); 
+        } else {
+            strcpy(buf, s_app_info[i].name);
+        }
+        ui_list_append_text(list, buf, app_list_select, &s_app_info[i]);
+    }
+}
 
 void app_list_dialog(ui_list_item_t *item, void *arg)
 {
@@ -18,7 +120,7 @@ void app_list_dialog(ui_list_item_t *item, void *arg)
         .height = d->cr.height,
     };
     ui_list_t *list = ui_dialog_add_list(d, lr);
-
+    fill_app_list(list);
     ui_dialog_showmodal(d);
     ui_dialog_destroy(d);
 }

@@ -54,7 +54,7 @@ static int cmp_app_info(const void *a, const void *b)
 {
     struct app_info_t *aa = (struct app_info_t *)a;
     struct app_info_t *bb = (struct app_info_t *)b;
-    return strcmp(aa->name, bb->name);
+    return strcasecmp(aa->name, bb->name);
 }
 
 static char *app_json_fread(char *filename)
