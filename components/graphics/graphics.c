@@ -81,6 +81,10 @@ void draw_line(gbuf_t *g, point_t start, point_t end, draw_style_t style, uint16
 {
     short inc, dx, dy;
 
+    if (g->endian == BIG_ENDIAN) {
+        color = color << 8 | color >> 8;
+    }
+
     dx = abs(end.x - start.x);
     dy = abs(end.y - start.y);
     if (dx >= dy) {
@@ -135,6 +139,35 @@ void draw_rectangle(gbuf_t *g, rect_t r, enum draw_style_t style, uint16_t color
     end.x = r.x + r.width - 1;
     end.y = r.y + r.height - 1;
     draw_line(g, start, end, style, color);
+}
+
+void draw_rectangle3d(gbuf_t *g, rect_t r, uint16_t color_nw, uint16_t color_se)
+{
+    point_t start, end;
+
+    start.x = r.x;
+    start.y = r.y;
+    end.x = r.x + r.width - 1;
+    end.y = r.y;
+    draw_line(g, start, end, DRAW_STYLE_SOLID, color_nw);
+
+    start.x = r.x;
+    start.y = r.y;
+    end.x = r.x;
+    end.y = r.y + r.height - 1;
+    draw_line(g, start, end, DRAW_STYLE_SOLID, color_nw);
+
+    start.x = r.x;
+    start.y = r.y + r.height - 1;
+    end.x = r.x + r.width - 1;
+    end.y = r.y + r.height - 1;
+    draw_line(g, start, end, DRAW_STYLE_SOLID, color_se);
+
+    start.x = r.x + r.width - 1;
+    start.y = r.y;
+    end.x = r.x + r.width - 1;
+    end.y = r.y + r.height - 1;
+    draw_line(g, start, end, DRAW_STYLE_SOLID, color_se);
 }
 
 void fill_rectangle(gbuf_t *g, rect_t rect, uint16_t color)

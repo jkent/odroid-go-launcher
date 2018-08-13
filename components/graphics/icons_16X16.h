@@ -1,6 +1,6 @@
 #include "tf.h"
 
-const struct tf_font_t font_icons_16X16;
+const tf_font_t font_icons_16X16;
 
 #define FONT_ICON_BATTERY0 (0x20)
 #define FONT_ICON_BATTERY1 (0x21)

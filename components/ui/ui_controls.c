@@ -8,9 +8,9 @@
 #include "ui_controls.h"
 #include "ui_dialog.h"
 #include "ui_osk.h"
+#include "ui_theme.h"
 
 #define BORDER (1)
-#define PADDING (2)
 
 
 /* ui_button */
@@ -29,13 +29,16 @@ static void button_draw(ui_control_t *control)
     rb.x += button->d->cr.x;
     rb.y += button->d->cr.y;
 
-    fill_rectangle(fb, button->tf->clip, 0x632C);
-    draw_rectangle(fb, rb, DRAW_STYLE_SOLID, control == control->d->active ? 0xFFFF : 0x0000);
+    fill_rectangle(fb, button->tf->clip, ui_theme->button_color);
+    draw_rectangle3d(fb, rb, ui_theme->border3d_light_color, ui_theme->border3d_dark_color);
+    if (control == control->d->active) {
+        draw_rectangle(fb, button->tf->clip, DRAW_STYLE_DOTTED, ui_theme->selection_color);
+    }
 
     if (button->text) {
         tf_metrics_t m = tf_get_str_metrics(button->tf, button->text);
         point_t p = {
-            .x = button->d->cr.x + button->r.x + PADDING,
+            .x = button->d->cr.x + button->r.x + ui_theme->padding,
             .y = button->d->cr.y + button->r.y + button->r.height/2 - m.height/2 + 1,
         };
         tf_draw_str(fb, button->tf, button->text, p);
@@ -66,7 +69,7 @@ ui_button_t *ui_dialog_add_button(ui_dialog_t *d, rect_t r, const char *text, ui
     button->onselect = onselect;
     button->free = button_free;
     button->text = strdup(text);
-    button->tf = tf_new(&font_OpenSans_Regular_11X12, button->r.width - 2 * PADDING, TF_ELIDE);
+    button->tf = tf_new(&font_OpenSans_Regular_11X12, ui_theme->text_color, button->r.width - 2*ui_theme->padding, TF_ALIGN_CENTER | TF_ELIDE);
 
     ui_dialog_add_control(d, (ui_control_t *)button);
 
@@ -90,13 +93,16 @@ static void edit_draw(ui_control_t *control)
     rb.x += edit->d->cr.x;
     rb.y += edit->d->cr.y;
 
-    fill_rectangle(fb, edit->tf->clip, 0x3186);
-    draw_rectangle(fb, rb, DRAW_STYLE_SOLID, control == control->d->active ? 0xFFFF : 0x0000);
+    fill_rectangle(fb, edit->tf->clip, ui_theme->control_color);
+    draw_rectangle3d(fb, rb, ui_theme->border3d_dark_color, ui_theme->border3d_light_color);
+    if (control == control->d->active) {
+        draw_rectangle(fb, edit->tf->clip, DRAW_STYLE_DOTTED, ui_theme->selection_color);
+    }
 
     if (edit->text) {
         tf_metrics_t m = tf_get_str_metrics(edit->tf, edit->text);
         point_t p = {
-            .x = edit->d->cr.x + edit->r.x + PADDING,
+            .x = edit->d->cr.x + edit->r.x + ui_theme->padding,
             .y = edit->d->cr.y + edit->r.y + edit->r.height/2 - m.height/2 + 1,
         };
         tf_draw_str(fb, edit->tf, edit->text, p);
@@ -142,7 +148,7 @@ ui_edit_t *ui_dialog_add_edit(ui_dialog_t *d, rect_t r, const char *text, size_t
     strncpy(edit->text, text, text_len);
     edit->text[text_len - 1] = '\0';
     edit->text_len = text_len;
-    edit->tf = tf_new(&font_OpenSans_Regular_11X12, edit->r.width - 2 * PADDING, TF_ELIDE);
+    edit->tf = tf_new(&font_OpenSans_Regular_11X12, ui_theme->text_color, edit->r.width - 2*ui_theme->padding, TF_ELIDE);
 
     ui_dialog_add_control(d, (ui_control_t *)edit);
 
@@ -163,7 +169,7 @@ static void label_draw(ui_control_t *control)
     if (label->text) {
         tf_metrics_t m = tf_get_str_metrics(label->tf, label->text);
         point_t p = {
-            .x = label->d->cr.x + label->r.x + PADDING,
+            .x = label->d->cr.x + label->r.x + ui_theme->padding,
             .y = label->d->cr.y + label->r.y + label->r.height/2 - m.height/2,
         };
         tf_draw_str(fb, label->tf, label->text, p);
@@ -193,7 +199,7 @@ ui_label_t *ui_dialog_add_label(ui_dialog_t *d, rect_t r, const char *text)
     label->draw = label_draw;
     label->free = label_free;
     label->text = strdup(text);
-    label->tf = tf_new(&font_OpenSans_Regular_11X12, label->r.width - 2 * PADDING, TF_ELIDE);
+    label->tf = tf_new(&font_OpenSans_Regular_11X12, ui_theme->text_color, label->r.width - 2*ui_theme->padding, TF_ELIDE);
 
     ui_dialog_add_control(d, (ui_control_t *)label);
 
@@ -207,7 +213,7 @@ static void list_draw(ui_control_t *control)
 {
     ui_list_t *list = (ui_list_t *)control;
 
-    list->item_height = list->tf->font->height + 2*PADDING;
+    list->item_height = list->tf->font->height + 2*ui_theme->padding;
     list->rows = (list->r.height - 2*BORDER + list->item_height - 1) / list->item_height;
 
     list->tf->clip = list->r;
@@ -220,8 +226,11 @@ static void list_draw(ui_control_t *control)
     rb.x += list->d->cr.x;
     rb.y += list->d->cr.y;
 
-    fill_rectangle(fb, list->tf->clip, 0x3186);
-    draw_rectangle(fb, rb, DRAW_STYLE_SOLID, control == control->d->active ? 0xFFFF : 0x0000);
+    fill_rectangle(fb, list->tf->clip, ui_theme->control_color);
+    draw_rectangle3d(fb, rb, ui_theme->border3d_dark_color, ui_theme->border3d_light_color);
+    if (control == control->d->active && !list->selected) {
+        draw_rectangle(fb, list->tf->clip, DRAW_STYLE_DOTTED, ui_theme->selection_color);
+    }
 
     if (list->item_index > list->item_count) {
         list->item_index = list->item_count - 1;
@@ -250,18 +259,18 @@ static void list_draw(ui_control_t *control)
         ui_list_item_t *item = &list->items[list->first_index + row];
 
         rect_t r = list->r;
-        r.x += list->d->cr.x + BORDER;
-        r.y += list->d->cr.y - list->shift + row * list->item_height + BORDER;
-        r.width = list->r.width - 2*BORDER;
-        r.height = list->item_height;
+        r.x += list->d->cr.x + BORDER + 1;
+        r.y += list->d->cr.y - list->shift + row * list->item_height + BORDER + 1;
+        r.width = list->r.width - 2*BORDER - 2;
+        r.height = list->item_height - 2;
 
         point_t p = {
-            .x = r.x + PADDING,
+            .x = r.x + ui_theme->padding,
             .y = r.y + r.height/2 - list->tf->font->height/2 + 1,
         };
 
         if (list->first_index + row == list->item_index) {
-            fill_rectangle(fb, r, list->selected ? 0x001F : 0x632C);
+            fill_rectangle(fb, r, list->selected ? ui_theme->active_highlight_color : ui_theme->inactive_highlight_color);
         }
         switch (item->type) {
             case LIST_ITEM_TEXT:
@@ -270,15 +279,15 @@ static void list_draw(ui_control_t *control)
 
             case LIST_ITEM_SEPARATOR: {
                 point_t start = {
-                    .x = r.x + PADDING,
+                    .x = r.x + ui_theme->padding,
                     .y = r.y + list->item_height/2,
                 };
                 point_t end = {
-                    .x = r.x + r.width - 1 - PADDING,
+                    .x = r.x + r.width - 1 - ui_theme->padding,
                     .y = r.y + list->item_height/2,
                 };
                 if (start.y < list->d->cr.y + list->r.y + list->r.height - 2*BORDER - 1) {
-                    draw_line(fb, start, end, DRAW_STYLE_SOLID, 0xFFFF);
+                    draw_line(fb, start, end, DRAW_STYLE_SOLID, ui_theme->text_color);
                 }
                 break;
             }
@@ -385,7 +394,7 @@ ui_list_t *ui_dialog_add_list(ui_dialog_t *d, rect_t r)
     list->draw = list_draw;
     list->onselect = list_onselect;
     list->free = list_free;
-    list->tf = tf_new(&font_OpenSans_Regular_11X12, list->r.width - 2 * PADDING, TF_ELIDE);
+    list->tf = tf_new(&font_OpenSans_Regular_11X12, ui_theme->text_color, list->r.width - 2*ui_theme->padding, TF_ELIDE);
 
     ui_dialog_add_control(d, (ui_control_t *)list);
 

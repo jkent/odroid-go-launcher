@@ -10,6 +10,7 @@
 #include "statusbar.h"
 #include "ui_dialog.h"
 #include "ui_osk.h"
+#include "ui_theme.h"
 
 
 const char keyboards[3][4][11] = {
@@ -39,7 +40,7 @@ ui_osk_t *ui_osk_new(ui_edit_t *edit)
     ui_osk_t *osk = calloc(1, sizeof(ui_osk_t));
     assert(osk != NULL);
 
-    osk->tf = tf_new(&font_OpenSans_Regular_11X12, fb->width - 4, 0);
+    osk->tf = tf_new(&font_OpenSans_Regular_11X12, ui_theme->text_color, fb->width - 4, 0);
     osk->button_width = fb->width / 12;
     osk->button_height = osk->tf->font->height + 5;
     osk->r.x = 0;
@@ -67,7 +68,7 @@ void ui_osk_free(ui_osk_t *osk)
 
 static void osk_draw(ui_osk_t *osk)
 {
-    fill_rectangle(fb, osk->r, 0x0000);
+    fill_rectangle(fb, osk->r, ui_theme->window_color);
 
     short cx = osk->r.width / 2 - osk->button_width * 12 / 2;
     short cy = osk->r.height / 2 - osk->button_height * 6 / 2;
@@ -80,7 +81,7 @@ static void osk_draw(ui_osk_t *osk)
         .x = osk->r.x + osk->r.width - 1,
         .y = osk->r.y + cy,
     };
-    draw_line(fb, start, end, DRAW_STYLE_SOLID, 0xFFFF);
+    draw_line(fb, start, end, DRAW_STYLE_SOLID, ui_theme->border3d_light_color);
 
     point_t p = {
         .x = osk->r.x + 2,
@@ -126,9 +127,9 @@ static void osk_draw(ui_osk_t *osk)
                     .height = osk->button_height * rows - 1,
                 };
 
-                fill_rectangle(fb, r, 0x3186);
+                fill_rectangle(fb, r, ui_theme->button_color);
                 if (row == osk->row && col == osk->col) {
-                    draw_rectangle(fb, r, DRAW_STYLE_SOLID, 0xFFFF);
+                    draw_rectangle(fb, r, DRAW_STYLE_SOLID, ui_theme->selection_color);
                 }
                 tf_metrics_t m = tf_get_str_metrics(osk->tf, s);
                 point_t bp = {

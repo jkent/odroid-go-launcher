@@ -9,9 +9,8 @@
 #include "statusbar.h"
 #include "tf.h"
 #include "ui_dialog.h"
+#include "ui_theme.h"
 
-
-#define PADDING (2)
 
 static ui_dialog_t *top = NULL;
 
@@ -46,34 +45,39 @@ void ui_dialog_draw(ui_dialog_t *d)
 {
     assert(d->visible);
 
-    d->cr.x = d->r.x + PADDING;
-    d->cr.y = d->r.y + PADDING;
-    d->cr.width = d->r.width - 2*PADDING;
-    d->cr.height = d->r.height - 2*PADDING;
+    d->cr.x = d->r.x + 1;
+    d->cr.y = d->r.y + 1;
+    d->cr.width = d->r.width - 2;
+    d->cr.height = d->r.height - 2;
 
-    fill_rectangle(fb, d->r, 0x0000);
-    draw_rectangle(fb, d->r, DRAW_STYLE_SOLID, 0xFFFF);
+    fill_rectangle(fb, d->r, ui_theme->window_color);
+    draw_rectangle3d(fb, d->r, ui_theme->border3d_light_color, ui_theme->border3d_dark_color);
 
     if (d->title) {
-        tf_t *tf = tf_new(&font_OpenSans_Regular_11X12, d->cr.width, TF_ALIGN_CENTER | TF_ELIDE);
+        tf_t *tf = tf_new(&font_OpenSans_Regular_11X12, ui_theme->text_color, d->cr.width - 2, TF_ALIGN_CENTER | TF_ELIDE);
         tf_metrics_t m = tf_get_str_metrics(tf, d->title);
-        rect_t r = {
-            .x = d->r.x,
-            .y = d->r.y,
-            .width = d->r.width,
-            .height = m.height + 6,
+        rect_t r = d->cr;
+        r.height = m.height + 2*ui_theme->padding;
+        fill_rectangle(fb, r, ui_theme->active_highlight_color);
+
+        point_t start = {
+            .x = r.x,
+            .y = r.y + r.height,
         };
-        fill_rectangle(fb, r, 0x001F);
-        draw_rectangle(fb, r, DRAW_STYLE_SOLID, 0xFFFF);
+        point_t end = {
+            .x = r.x + r.width,
+            .y = r.y + r.height,
+        };
+        draw_line(fb, start, end, DRAW_STYLE_SOLID, ui_theme->border3d_light_color);
 
         point_t p = {
-            .x = d->r.x + PADDING,
-            .y = d->r.y + PADDING + 1,
+            .x = d->r.x + ui_theme->padding,
+            .y = d->r.y + ui_theme->padding + 1,
         };
         tf_draw_str(fb, tf, d->title, p);
 
-        d->cr.y += m.height + 5;
-        d->cr.height -= m.height + 5;
+        d->cr.y += m.height + 2*ui_theme->padding + 1;
+        d->cr.height -= m.height + 2 * ui_theme->padding + 1;
     }
 }
 

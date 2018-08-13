@@ -30,7 +30,7 @@ void app_main(void)
     display_init();
     backlight_init();
 
-    tf_t *tf = tf_new(&font_OpenSans_Regular_11X12, 240, TF_ALIGN_CENTER | TF_WORDWRAP);
+    tf_t *tf = tf_new(&font_OpenSans_Regular_11X12, 0xFFFF, 240, TF_ALIGN_CENTER | TF_WORDWRAP);
     const char *s;
     tf_metrics_t m;
     point_t p;

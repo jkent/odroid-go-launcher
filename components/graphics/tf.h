@@ -13,10 +13,10 @@ enum tf_flags_t {
     TF_ELIDE = 8,
 };
 
-struct tf_font_t;
+typedef struct tf_font_t tf_font_t;
 
 typedef struct {
-    const struct tf_font_t *font;
+    const tf_font_t *font;
     uint16_t color;
     short width;
     uint16_t flags;
@@ -37,7 +37,7 @@ typedef struct  {
     short height;
 } tf_metrics_t;
 
-tf_t *tf_new(const struct tf_font_t *font, short width, uint32_t flags);
+tf_t *tf_new(const tf_font_t *font, uint16_t color, short width, uint32_t flags);
 void tf_free(tf_t *tf);
 tf_metrics_t tf_get_str_metrics(tf_t *tf, const char *s);
 short tf_draw_glyph(gbuf_t *g, tf_t *tf, char c, point_t p);

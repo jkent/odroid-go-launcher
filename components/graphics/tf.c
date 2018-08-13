@@ -13,13 +13,13 @@ typedef struct {
 } tf_iterinfo_t;
 
 
-tf_t *tf_new(const struct tf_font_t *font, short width, uint32_t flags)
+tf_t *tf_new(const struct tf_font_t *font, uint16_t color, short width, uint32_t flags)
 {
     tf_t *tf = calloc(1, sizeof(tf_t));
     assert(tf != NULL);
 
     tf->font = font;
-    tf->color = 0xffff;
+    tf->color = color;
     tf->width = width;
     tf->flags = flags;
     return tf;

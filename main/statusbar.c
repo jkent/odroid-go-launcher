@@ -38,7 +38,7 @@ static int rssi_to_bars(int rssi, int levels)
 
 void statusbar_init(void)
 {
-    s_icons = tf_new(&font_icons_16X16, 0, 0);
+    s_icons = tf_new(&font_icons_16X16, 0xFFFF, 0, 0);
     s_rect.x = 0;
     s_rect.y = 0;
     s_rect.width = DISPLAY_WIDTH;
