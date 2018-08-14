@@ -111,10 +111,10 @@ typedef struct ui_list_t {
     ui_control_onselect_t onselect;
     ui_control_free_t free;
 
-    bool selected;
-    ui_list_item_t *items;
+    bool active;
+    ui_list_item_t **items;
+    ui_list_item_t *selected;
     size_t item_count;
-    int item_index;
     int first_index;
     int shift;
 } ui_list_t;

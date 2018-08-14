@@ -212,6 +212,16 @@ ui_label_t *ui_dialog_add_label(ui_dialog_t *d, rect_t r, const char *text)
 
 /* ui_list */
 
+static int list_find_index(ui_list_t *list, ui_list_item_t *item)
+{
+    for (int i = 0; i < list->item_count; i++) {
+        if (list->items[i] == item) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 static void list_draw(ui_control_t *control)
 {
     ui_list_t *list = (ui_list_t *)control;
@@ -231,24 +241,26 @@ static void list_draw(ui_control_t *control)
 
     fill_rectangle(fb, list->tf->clip, ui_theme->control_color);
     draw_rectangle3d(fb, rb, ui_theme->border3d_dark_color, ui_theme->border3d_light_color);
-    if (control == control->d->active && !list->selected) {
+    if (control == control->d->active && !list->active) {
         draw_rectangle(fb, list->tf->clip, DRAW_STYLE_DOTTED, ui_theme->selection_color);
     }
 
-    if (list->item_index > list->item_count) {
-        list->item_index = list->item_count - 1;
+    int index = list_find_index(list, list->selected);
+    if (index < 0 && list->item_count > 0) {
+        list->selected = list->items[0];
+        index = 0;
     }
 
-    if (list->item_index > list->first_index + rows - 1) {
-        list->first_index = list->item_index - rows + 1;
+    if (index > list->first_index + rows - 1) {
+        list->first_index = index - rows + 1;
     }
-    if (list->item_index < list->first_index) {
-        list->first_index = list->item_index;
+    if (index < list->first_index) {
+        list->first_index = index;
     }
-    if ( list->item_index < list->first_index + 1) {
+    if (index < list->first_index + 1) {
         list->shift = 0;
     }
-    if (list->item_index >= list->first_index + rows - 1) {
+    if (index >= list->first_index + rows - 1) {
         list->shift = item_height - (list->r.height - 2*BORDER) % item_height;
         if (list->shift >= item_height) {
             list->shift = 0;
@@ -259,7 +271,7 @@ static void list_draw(ui_control_t *control)
         if (row >= list->item_count) {
             break;
         }
-        ui_list_item_t *item = &list->items[list->first_index + row];
+        ui_list_item_t *item = list->items[list->first_index + row];
 
         rect_t r = list->r;
         r.x += list->d->cr.x + BORDER + 1;
@@ -272,8 +284,8 @@ static void list_draw(ui_control_t *control)
             .y = r.y + r.height/2 - list->tf->font->height/2 + 1,
         };
 
-        if (list->first_index + row == list->item_index) {
-            fill_rectangle(fb, r, list->selected ? ui_theme->active_highlight_color : ui_theme->inactive_highlight_color);
+        if (list->first_index + row == index) {
+            fill_rectangle(fb, r, list->active ? ui_theme->active_highlight_color : ui_theme->inactive_highlight_color);
         }
         switch (item->type) {
             case LIST_ITEM_TEXT:
@@ -322,45 +334,44 @@ static void list_onselect(ui_control_t *control)
         .height = list->r.height,
     };
 
-    list->selected = true;
+    list->active = true;
     list->draw(control);
     display_update_rect(r);
 
     keypad_info_t keys;
     while (!list->hide) {
         if (keypad_queue_receive(list->d->keypad, &keys, 50/portTICK_RATE_MS)) {
+            int index = list_find_index(list, list->selected);
+
             if (keys.pressed & KEYPAD_UP) {
                 int i;
-                for (i = list->item_index - 1; i >= 0; i--) {
-                    if (list->items[i].type == LIST_ITEM_TEXT) {
+                for (i = index - 1; i >= 0; i--) {
+                    if (list->items[i]->type == LIST_ITEM_TEXT) {
                         break;
                     }
                 }
                 if (i >= 0) {
-                    list->item_index = i;
+                    list->selected = list->items[i];
                     list->dirty = true;
                 }
             }
 
             if (keys.pressed & KEYPAD_DOWN) {
                 int i;
-                for (i = list->item_index + 1; i < list->item_count; i++) {
-                    if (list->items[i].type == LIST_ITEM_TEXT) {
+                for (i = index + 1; i < list->item_count; i++) {
+                    if (list->items[i]->type == LIST_ITEM_TEXT) {
                         break;
                     }
                 }
                 if (i < list->item_count) {
-                    list->item_index = i;
+                    list->selected = list->items[i];
                     list->dirty = true;
                 }
             }
 
             if (keys.pressed & KEYPAD_A) {
-                if (list->item_index >= 0 && list->item_index < list->item_count) {
-                    ui_list_item_t *item = &list->items[list->item_index];
-                    if (item->onselect) {
-                        item->onselect(item, item->arg);
-                    }
+                if (index >= 0 && list->selected->onselect) {
+                    list->selected->onselect(list->selected, list->selected->arg);
                 }
             }
 
@@ -381,7 +392,7 @@ static void list_onselect(ui_control_t *control)
         periodic_tick();
     }
 
-    list->selected = false;
+    list->active = false;
     list->draw(control);
     list->dirty = true;
 }
@@ -410,16 +421,18 @@ static struct ui_list_item_t *list_insert_new(ui_list_t *list, int index)
     }
     assert(index >= 0 && index <= list->item_count);
 
-    list->items = realloc(list->items, sizeof(ui_list_item_t) * (list->item_count + 1));
+    list->items = realloc(list->items, sizeof(ui_list_item_t *) * (list->item_count + 1));
     assert(list->items != NULL);
 
     if (index < list->item_count) {
-        memmove(&list->items[index + 1], &list->items[index], sizeof(ui_list_item_t) * (list->item_count - index));
+        memmove(&list->items[index + 1], &list->items[index], sizeof(ui_list_item_t *) * (list->item_count - index));
     }
 
-    memset(&list->items[index], 0, sizeof(ui_list_item_t));
+    ui_list_item_t *item = calloc(1, sizeof(ui_list_item_t));
+
+    list->items[index] = item;
     list->item_count += 1;
-    return &list->items[index];
+    return item;
 }
 
 void ui_list_insert_text(ui_list_t *list, int index, char *text, ui_list_item_onselect_t onselect, void *arg)
@@ -457,7 +470,7 @@ void ui_list_remove(ui_list_t *list, int index)
     }
     assert(index >= 0 && index < list->item_count);
 
-    struct ui_list_item_t *item = &list->items[index];
+    struct ui_list_item_t *item = list->items[index];
     switch (item->type) {
         case LIST_ITEM_TEXT:
             if (item->text) {
@@ -469,14 +482,15 @@ void ui_list_remove(ui_list_t *list, int index)
             break;
     }
 
+    free(list->items[index]);
     if (list->item_count == 1) {
         free(list->items);
         list->items = NULL;
     } else {
         if (index < list->item_count - 1) {
-            memmove(&list->items[index], &list->items[index + 1], sizeof(ui_list_item_t) * (list->item_count - index - 1));
+            memmove(&list->items[index], &list->items[index + 1], sizeof(ui_list_item_t *) * (list->item_count - index - 1));
         }
-        list->items = realloc(list->items, sizeof(ui_list_item_t) * list->item_count - 1);
+        list->items = realloc(list->items, sizeof(ui_list_item_t *) * list->item_count - 1);
         assert(list->items != NULL);
     }
 

@@ -182,8 +182,8 @@ static void scan_update_list(periodic_handle_t handle, void *arg)
         if (i >= 0) {
             s_scan_records[i]->rssi = record.rssi;
             sprintf(s, "%s [%d]", record.ssid, record.rssi);
-            free(list->items[i + 2].text);
-            list->items[i + 2].text = strdup(s);
+            free(list->items[i + 2]->text);
+            list->items[i + 2]->text = strdup(s);
             list->dirty = true;
             return;
         }
