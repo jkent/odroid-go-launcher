@@ -32,6 +32,8 @@ static void app_popup_uninstall(ui_list_item_t *item, void *arg)
     item->list->hide = true;
 }
 
+static void fill_app_list(ui_list_t *list);
+
 static void app_list_select(ui_list_item_t *item, void *arg)
 {
     struct app_info_t *info = (struct app_info_t *)arg;
@@ -66,17 +68,7 @@ static void app_list_select(ui_list_item_t *item, void *arg)
     ui_dialog_showmodal(d);
     ui_dialog_destroy(d);
 
-    char buf[269];
-    strcpy(buf, info->name);
-    app_info(buf, info);
-    if (info->installed && info->upgradable) {
-        snprintf(buf, sizeof(buf), "%s [Upgradable]", info->name);
-    } else if (info->installed) {
-        snprintf(buf, sizeof(buf), "%s [Installed]", info->name); 
-    }
-    free(item->text);
-    item->text = strdup(buf);
-    item->list->dirty = true;
+    fill_app_list(item->list);
 }
 
 static void fill_app_list(ui_list_t *list)
@@ -101,6 +93,7 @@ static void fill_app_list(ui_list_t *list)
         }
         ui_list_append_text(list, buf, app_list_select, &s_app_info[i]);
     }
+    list->dirty = true;
 }
 
 void app_list_dialog(ui_list_item_t *item, void *arg)

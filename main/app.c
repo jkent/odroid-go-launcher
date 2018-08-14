@@ -203,7 +203,6 @@ int app_get_slot(const char *name, bool *installed)
             if (installed) {
                 *installed = true;
             }
-            printf("found in slot %d\n", slot);
             goto end;
         }
     }
@@ -217,7 +216,6 @@ int app_get_slot(const char *name, bool *installed)
     nvs_get_str(nvs, "mru", mru, &len);
 
     slot = mru[0] - '0';
-    printf("mru: %s\n", mru);
 
 end:
     nvs_close(nvs);
