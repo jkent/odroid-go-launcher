@@ -47,7 +47,6 @@ void app_main(void)
 
     keypad_init();
     ESP_ERROR_CHECK(nvs_flash_init());
-    wifi_init();
     sdcard_init("/sdcard");
 
     esp_vfs_spiffs_conf_t conf = {
@@ -58,6 +57,7 @@ void app_main(void)
     };
 
     ESP_ERROR_CHECK(esp_vfs_spiffs_register(&conf));
+    wifi_init();
     statusbar_init();
 
     keypad = keypad_get_queue();
