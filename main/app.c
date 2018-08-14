@@ -163,6 +163,25 @@ semver_done:
     }
 }
 
+static void update_mru(nvs_handle nvs, int slot)
+{
+    char mru[NUM_OTA_PARTITIONS + 1];
+    for (int i = 0; i < NUM_OTA_PARTITIONS; i++) {
+        mru[i] = '1' + i;
+    }
+    size_t len = sizeof(mru);
+    nvs_get_str(nvs, "mru", mru, &len);
+    char *p = strchr(mru, '0' + slot);
+    len = strlen(mru);
+    if (p) {
+        memmove(p, p + 1, len - (p - mru));
+        mru[len - 1] = '0' + slot;
+    } else {
+        mru[len] = '0' + slot;
+    }
+    ESP_ERROR_CHECK(nvs_set_str(nvs, "mru", mru));
+}
+
 int app_get_slot(const char *name, bool *installed)
 {
     int slot;
@@ -171,7 +190,7 @@ int app_get_slot(const char *name, bool *installed)
     }
 
     nvs_handle nvs;
-    ESP_ERROR_CHECK(nvs_open("nvs", NVS_READONLY, &nvs));
+    ESP_ERROR_CHECK(nvs_open("nvs", NVS_READWRITE, &nvs));
 
     for (slot = 1; slot <= NUM_OTA_PARTITIONS; slot++) {
         char key[5], value[256];
@@ -184,6 +203,7 @@ int app_get_slot(const char *name, bool *installed)
             if (installed) {
                 *installed = true;
             }
+            printf("found in slot %d\n", slot);
             goto end;
         }
     }
@@ -197,6 +217,7 @@ int app_get_slot(const char *name, bool *installed)
     nvs_get_str(nvs, "mru", mru, &len);
 
     slot = mru[0] - '0';
+    printf("mru: %s\n", mru);
 
 end:
     nvs_close(nvs);
@@ -269,7 +290,7 @@ struct app_info_t *app_enumerate(size_t *count)
 
     /* first find all apps in flash */
     nvs_handle nvs;
-    ESP_ERROR_CHECK(nvs_open("nvs", NVS_READONLY, &nvs));
+    ESP_ERROR_CHECK(nvs_open("nvs", NVS_READWRITE, &nvs));
 
     for (int i = 0; i < NUM_OTA_PARTITIONS; i++) {
         char key[5], value[256];
@@ -433,6 +454,7 @@ bool app_install(const char *name, int slot)
     /* mark slot with app name */
     snprintf(key, sizeof(key), "app%d", slot);
     ESP_ERROR_CHECK(nvs_set_str(nvs, key, name));
+    update_mru(nvs, slot);
     ESP_ERROR_CHECK(nvs_commit(nvs));
     nvs_close(nvs);
     return false;
@@ -499,21 +521,9 @@ void app_run(const char *name, bool upgrade)
         }
     }
 
-    /* update mru */
-    char mru[NUM_OTA_PARTITIONS + 1] = { 0 };
     nvs_handle nvs;
     ESP_ERROR_CHECK(nvs_open("nvs", NVS_READWRITE, &nvs));
-    size_t len = sizeof(mru);
-    nvs_get_str(nvs, "mru", mru, &len);
-    char *p = strchr(mru, '0' + info.slot_num);
-    len = strlen(mru);
-    if (p) {
-        memmove(p, p + 1, len - (p - mru));
-        mru[len - 1] = '0' + info.slot_num;
-    } else {
-        mru[len] = '0' + info.slot_num;
-    }
-    ESP_ERROR_CHECK(nvs_set_str(nvs, "mru", mru));
+    update_mru(nvs, info.slot_num);
     ESP_ERROR_CHECK(nvs_commit(nvs));
     nvs_close(nvs);
 
