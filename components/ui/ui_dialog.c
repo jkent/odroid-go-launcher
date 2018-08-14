@@ -188,6 +188,22 @@ void ui_dialog_showmodal(ui_dialog_t *d)
                 display_update_rect(d->r);
             }
         }
+
+        bool dirty = false;
+        for (int i = 0; i < d->controls_size; i++) {
+            ui_control_t *control = d->controls[i];
+            if (control == NULL) {
+                continue;
+            }
+            if (control->dirty) {
+                dirty = true;
+                control->dirty = false;
+            }
+        }
+        if (dirty) {
+            display_update_rect(d->r);
+        }
+
         periodic_tick();
     }
 

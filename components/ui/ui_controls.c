@@ -166,6 +166,7 @@ static void label_draw(ui_control_t *control)
     label->tf->clip.x += label->d->cr.x;
     label->tf->clip.y += label->d->cr.y;
 
+    fill_rectangle(fb, label->tf->clip, ui_theme->window_color);
     if (label->text) {
         tf_metrics_t m = tf_get_str_metrics(label->tf, label->text);
         point_t p = {
@@ -198,7 +199,9 @@ ui_label_t *ui_dialog_add_label(ui_dialog_t *d, rect_t r, const char *text)
     label->r = r;
     label->draw = label_draw;
     label->free = label_free;
-    label->text = strdup(text);
+    if (text) {
+        label->text = strdup(text);
+    }
     label->tf = tf_new(&font_OpenSans_Regular_11X12, ui_theme->text_color, label->r.width - 2*ui_theme->padding, TF_ELIDE);
 
     ui_dialog_add_control(d, (ui_control_t *)label);
