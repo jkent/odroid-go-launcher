@@ -22,14 +22,16 @@ periodic_handle_t periodic_register(TickType_t interval, periodic_callback_t cal
 {
     periodic_data = realloc(periodic_data, sizeof(periodic_data_t *) * (periodic_count + 1));
     assert(periodic_data != NULL);
-    periodic_data[periodic_count] = malloc(sizeof(periodic_data_t));
-    periodic_data_t *data = periodic_data[periodic_count];
-    periodic_count += 1;
+    periodic_data_t *data = malloc(sizeof(periodic_data_t));
+    assert(data != NULL);
 
     data->interval = interval;
     data->callback = callback;
     data->arg = arg;
     data->last_ticks = xTaskGetTickCount();
+
+    periodic_data[periodic_count] = data;
+    periodic_count += 1;
 
     return (periodic_handle_t)data;
 }
