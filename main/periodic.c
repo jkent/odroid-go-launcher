@@ -47,6 +47,9 @@ void periodic_unregister(periodic_handle_t handle)
     if (i >= periodic_count) {
         return;
     }
+
+    free(periodic_data[i]);
+
     if (periodic_count == 1) {
         free(periodic_data);
         periodic_data = NULL;
@@ -54,7 +57,6 @@ void periodic_unregister(periodic_handle_t handle)
         return;
     }
 
-    free(periodic_data[i]);
     if (i < periodic_count - 1) {
         memmove(&periodic_data[i], &periodic_data[i + 1], sizeof(periodic_data_t *) * (periodic_count - i - 1));
     }
