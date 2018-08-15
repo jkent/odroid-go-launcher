@@ -11,7 +11,7 @@ typedef struct ui_dialog_t ui_dialog_t;
 typedef struct ui_control_t ui_control_t;
 
 typedef void (*ui_control_draw_t)(ui_control_t *control);
-typedef void (*ui_control_onselect_t)(ui_control_t *control);
+typedef void (*ui_control_onselect_t)(ui_control_t *control, void *arg);
 typedef void (*ui_control_free_t)(ui_control_t *control);
 
 typedef enum {
@@ -31,6 +31,7 @@ typedef struct ui_control_t {
     ui_control_draw_t draw;
     ui_control_onselect_t onselect;
     ui_control_free_t free;
+    void *arg;
 } ui_control_t;
 
 
@@ -46,11 +47,12 @@ typedef struct ui_button_t {
     ui_control_draw_t draw;
     ui_control_onselect_t onselect;
     ui_control_free_t free;
+    void *arg;
 
     char *text;
 } ui_button_t;
 
-ui_button_t *ui_dialog_add_button(ui_dialog_t *d, rect_t r, const char *text, ui_control_onselect_t onselect);
+ui_button_t *ui_dialog_add_button(ui_dialog_t *d, rect_t r, const char *text, ui_control_onselect_t onselect, void *arg);
 
 
 /* ui_edit */
@@ -65,11 +67,13 @@ typedef struct ui_edit_t {
     ui_control_draw_t draw;
     ui_control_onselect_t onselect;
     ui_control_free_t free;
+    void *arg;
 
     char *text;
     size_t text_len;
     size_t len;
     size_t cursor;
+    bool password;
 } ui_edit_t;
 
 ui_edit_t *ui_dialog_add_edit(ui_dialog_t *d, rect_t r, const char *text, size_t text_len);
@@ -87,6 +91,7 @@ typedef struct ui_label_t {
     ui_control_draw_t draw;
     ui_control_onselect_t onselect;
     ui_control_free_t free;
+    void *arg;
 
     char *text;
 } ui_label_t;
@@ -110,6 +115,7 @@ typedef struct ui_list_t {
     ui_control_draw_t draw;
     ui_control_onselect_t onselect;
     ui_control_free_t free;
+    void *arg;
 
     bool selected;
     ui_list_item_t **items;

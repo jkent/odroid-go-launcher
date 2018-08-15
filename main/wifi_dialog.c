@@ -6,12 +6,26 @@
 #include "display.h"
 #include "periodic.h"
 #include "ui_dialog.h"
+#include "ui_theme.h"
 #include "wifi.h"
-
 
 static wifi_ap_record_t **s_scan_records = NULL;
 static size_t s_scan_records_len = 0;
 
+
+static void wifi_configuration_enable(ui_list_item_t *item, void *arg)
+{
+    if (wifi_enabled) {
+        wifi_disable();
+        free(item->text);
+        item->text = strdup("Enable Wi-Fi");
+    } else {
+        wifi_enable();
+        free(item->text);
+        item->text = strdup("Disable Wi-Fi");
+    }
+    item->list->dirty = true;
+}
 
 static void status_refresh(periodic_handle_t handle, void *arg)
 {
@@ -128,18 +142,92 @@ static void wifi_status_dialog(ui_list_item_t *item, void *arg)
     periodic_unregister(ph);
 }
 
-static void wifi_configuration_enable(ui_list_item_t *item, void *arg)
+typedef struct manual_entry_t {
+    char ssid[33];
+    char password[65];
+    int security;
+} manual_entry_t;
+
+static void wifi_configuration_add_manual_security(ui_control_t *control, void *arg)
 {
-    if (wifi_enabled) {
-        wifi_disable();
-        free(item->text);
-        item->text = strdup("Enable Wi-Fi");
-    } else {
-        wifi_enable();
-        free(item->text);
-        item->text = strdup("Disable Wi-Fi");
+    ui_button_t *button = (ui_button_t *)control;
+    manual_entry_t *entry = (manual_entry_t *)arg;
+
+    if (button->text) {
+        free(button->text);
+        button->text = NULL;
     }
-    item->list->dirty = true;
+
+    switch (entry->security) {
+        case WIFI_AUTH_OPEN:
+            entry->security = WIFI_AUTH_WEP;
+            button->text = strdup("WEP");
+            break;
+
+        case WIFI_AUTH_WEP:
+            entry->security = WIFI_AUTH_WPA_PSK;
+            button->text = strdup("WPA-PSK");
+            break;
+
+        case WIFI_AUTH_WPA_PSK:
+            entry->security = WIFI_AUTH_WPA2_PSK;
+            button->text = strdup("WPA2-PSK");
+            break;
+
+        case WIFI_AUTH_WPA2_PSK:
+            entry->security = WIFI_AUTH_OPEN;
+            button->text = strdup("Open");
+            break;
+
+        default:
+            break;
+    }
+
+    button->draw(control);
+}
+
+static void wifi_configuration_add_manual_dialog(ui_list_item_t *item, void *arg)
+{
+    rect_t r = {
+        .x = fb->width/2 - 320/2,
+        .y = fb->height/2 - 91/2,
+        .width = 320,
+        .height = 91,
+    };
+    ui_dialog_t *d = ui_dialog_new(item->list->d, r, "Manual Wi-Fi Entry");
+
+    rect_t lr = {
+        .x = 0,
+        .y = 0,
+        .width = 75,
+        .height = d->tf->font->height + 2*ui_theme->padding,
+    };
+
+    manual_entry_t entry = { 0 };
+
+    ui_dialog_add_label(d, lr, "SSID");
+    lr.y += lr.height;
+    ui_dialog_add_label(d, lr, "Password");
+    lr.y += lr.height;
+    ui_dialog_add_label(d, lr, "Security");
+
+    lr.y = 0;
+    lr.x += lr.width;
+    lr.width = d->cr.width - lr.width;
+    ui_dialog_add_edit(d, lr, entry.ssid, sizeof(entry.ssid));
+    lr.y += lr.height;
+    ui_edit_t *edit = ui_dialog_add_edit(d, lr, entry.password, sizeof(entry.password));
+    edit->password = true;
+    lr.y += lr.height;
+    ui_dialog_add_button(d, lr, "Open", wifi_configuration_add_manual_security, &entry);
+
+    lr.y += lr.height * 3 / 2;
+    lr.x = 0;
+    lr.width = d->cr.width;
+    ui_dialog_add_button(d, lr, "Save", NULL, NULL);
+
+    ui_dialog_showmodal(d);
+    ui_dialog_destroy(d);
 }
 
 static int compare_wifi_ap_records(const void *a, const void *b)
@@ -226,7 +314,7 @@ static void wifi_configuration_add_dialog(ui_list_item_t *item, void *arg)
         .height = d->cr.height,
     };
     ui_list_t *list = ui_dialog_add_list(d, lr);
-    ui_list_append_text(list, "Manual entry...", NULL, NULL);
+    ui_list_append_text(list, "Manual entry...", wifi_configuration_add_manual_dialog, NULL);
 
     periodic_handle_t ph_update = NULL;
     periodic_handle_t ph_scan = NULL;

@@ -83,11 +83,22 @@ static void osk_draw(ui_osk_t *osk)
     };
     draw_line(fb, start, end, DRAW_STYLE_SOLID, ui_theme->border3d_light_color);
 
-    point_t p = {
-        .x = osk->r.x + 2,
-        .y = osk->r.y + cy + (osk->button_height - 1) / 2 - osk->tf->font->height / 2 + 1,
-    };
-    tf_draw_str(fb, osk->tf, osk->edit->text, p);
+    if (osk->edit->text) {
+        point_t p = {
+            .x = osk->r.x + 2,
+            .y = osk->r.y + cy + (osk->button_height - 1) / 2 - osk->tf->font->height / 2 + 1,
+        };
+
+        if (osk->edit->password) {
+            size_t len = strlen(osk->edit->text);
+            char s[len + 1];
+            memset(s, '*', len);
+            s[len] = '\0';
+            tf_draw_str(fb, osk->tf, s, p);
+        } else {
+            tf_draw_str(fb, osk->tf, osk->edit->text, p);
+        }
+    }
 
     for (short row = 0; row < 5; row++) {
         for (short col = 0; col < 12; col++) {

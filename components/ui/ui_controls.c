@@ -58,7 +58,7 @@ static void button_free(ui_control_t *control)
     free(button);
 }
 
-ui_button_t *ui_dialog_add_button(ui_dialog_t *d, rect_t r, const char *text, ui_control_onselect_t onselect)
+ui_button_t *ui_dialog_add_button(ui_dialog_t *d, rect_t r, const char *text, ui_control_onselect_t onselect, void *arg)
 {
     ui_button_t *button = calloc(1, sizeof(ui_button_t));
 
@@ -67,6 +67,7 @@ ui_button_t *ui_dialog_add_button(ui_dialog_t *d, rect_t r, const char *text, ui
     button->r = r;
     button->draw = button_draw;
     button->onselect = onselect;
+    button->arg = arg;
     button->free = button_free;
     button->text = strdup(text);
     button->tf = tf_new(&font_OpenSans_Regular_11X12, ui_theme->text_color, button->r.width - 2*ui_theme->padding, TF_ALIGN_CENTER | TF_ELIDE);
@@ -100,18 +101,25 @@ static void edit_draw(ui_control_t *control)
     }
 
     if (edit->text) {
-        tf_metrics_t m = tf_get_str_metrics(edit->tf, edit->text);
         point_t p = {
             .x = edit->d->cr.x + edit->r.x + ui_theme->padding,
-            .y = edit->d->cr.y + edit->r.y + edit->r.height/2 - m.height/2 + 1,
+            .y = edit->d->cr.y + edit->r.y + edit->r.height/2 - edit->tf->font->height/2 + 1,
         };
-        tf_draw_str(fb, edit->tf, edit->text, p);
+        if (edit->password) {
+            size_t len = strlen(edit->text);
+            char s[len + 1];
+            memset(s, '*', len);
+            s[len] = '\0';
+            tf_draw_str(fb, edit->tf, s, p);
+        } else {
+            tf_draw_str(fb, edit->tf, edit->text, p);
+        }
     }
 
     edit->dirty = true;
 }
 
-static void edit_onselect(ui_control_t *control)
+static void edit_onselect(ui_control_t *control, void *arg)
 {
     ui_edit_t *edit = (ui_edit_t *)control;
 
@@ -323,7 +331,7 @@ static void list_free(ui_control_t *control)
     free(list);
 }
 
-static void list_onselect(ui_control_t *control)
+static void list_onselect(ui_control_t *control, void *arg)
 {
     ui_list_t *list = (ui_list_t *)control;
 

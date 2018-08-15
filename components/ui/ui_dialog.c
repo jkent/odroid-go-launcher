@@ -133,7 +133,7 @@ void ui_dialog_showmodal(ui_dialog_t *d)
         ((ui_list_t *)d->active)->selected = true;
         d->active->draw(d->active);
         display_update_rect(d->r);
-        d->active->onselect(d->active);
+        d->active->onselect(d->active, d->active->arg);
         d->hide = true;
     } else {
         display_update_rect(d->r);
@@ -166,7 +166,7 @@ void ui_dialog_showmodal(ui_dialog_t *d)
             }
 
             if (keys.pressed & KEYPAD_A && d->active && d->active->onselect) {
-                d->active->onselect(d->active);
+                d->active->onselect(d->active, d->active->arg);
             }
 
             if (keys.pressed & KEYPAD_B) {
