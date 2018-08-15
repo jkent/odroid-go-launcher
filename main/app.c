@@ -294,7 +294,7 @@ struct app_info_t *app_enumerate(size_t *count)
         char key[5], value[256];
         size_t len = sizeof(value);
 
-        snprintf(key, sizeof(key), "app%d", i);
+        snprintf(key, sizeof(key), "app%d", i + 1);
         if (nvs_get_str(nvs, key, value, &len) != ESP_OK) {
             continue;
         }
