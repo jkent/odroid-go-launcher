@@ -73,13 +73,17 @@ static void app_list_select(ui_list_item_t *item, void *arg)
 
 static void fill_app_list(ui_list_t *list)
 {
+    char *active_name = NULL;
+    if (s_app_info) {
+        struct app_info_t *selected_info = (struct app_info_t *)list->active->arg;
+        active_name = strdup(selected_info->name);
+        free(s_app_info);
+    }
+
     while (list->item_count > 0) {
         ui_list_remove(list, -1);
     }
 
-    if (s_app_info) {
-        free(s_app_info);
-    }
     s_app_info = app_enumerate(&s_app_count);
 
     for (int i = 0; i < s_app_count; i++) {
@@ -89,10 +93,18 @@ static void fill_app_list(ui_list_t *list)
         } else if (s_app_info[i].installed) {
             snprintf(buf, sizeof(buf), "%s [Installed]", s_app_info[i].name); 
         } else {
-            strcpy(buf, s_app_info[i].name);
+            strncpy(buf, s_app_info[i].name, sizeof(buf));
+            buf[sizeof(buf) - 1] = '\0';
         }
-        ui_list_append_text(list, buf, app_list_select, &s_app_info[i]);
+        ui_list_item_t *item = ui_list_append_text(list, buf, app_list_select, &s_app_info[i]);
+        if (active_name && strcmp(active_name, s_app_info[i].name) == 0) {
+            list->active = item;
+        }
     }
+    if (active_name) {
+        free(active_name);
+    }
+
     list->dirty = true;
 }
 
@@ -116,4 +128,9 @@ void app_list_dialog(ui_list_item_t *item, void *arg)
     fill_app_list(list);
     ui_dialog_showmodal(d);
     ui_dialog_destroy(d);
+
+    if (s_app_info) {
+        free(s_app_info);
+        s_app_info = NULL;
+    }
 }
