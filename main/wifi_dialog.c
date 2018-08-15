@@ -142,40 +142,34 @@ static void wifi_status_dialog(ui_list_item_t *item, void *arg)
     periodic_unregister(ph);
 }
 
-typedef struct manual_entry_t {
-    char ssid[33];
-    char password[65];
-    int security;
-} manual_entry_t;
-
 static void wifi_configuration_add_manual_security(ui_control_t *control, void *arg)
 {
     ui_button_t *button = (ui_button_t *)control;
-    manual_entry_t *entry = (manual_entry_t *)arg;
+    wifi_network_t *network = (wifi_network_t *)arg;
 
     if (button->text) {
         free(button->text);
         button->text = NULL;
     }
 
-    switch (entry->security) {
+    switch (network->authmode) {
         case WIFI_AUTH_OPEN:
-            entry->security = WIFI_AUTH_WEP;
+            network->authmode = WIFI_AUTH_WEP;
             button->text = strdup("WEP");
             break;
 
         case WIFI_AUTH_WEP:
-            entry->security = WIFI_AUTH_WPA_PSK;
+            network->authmode = WIFI_AUTH_WPA_PSK;
             button->text = strdup("WPA-PSK");
             break;
 
         case WIFI_AUTH_WPA_PSK:
-            entry->security = WIFI_AUTH_WPA2_PSK;
+            network->authmode = WIFI_AUTH_WPA2_PSK;
             button->text = strdup("WPA2-PSK");
             break;
 
         case WIFI_AUTH_WPA2_PSK:
-            entry->security = WIFI_AUTH_OPEN;
+            network->authmode = WIFI_AUTH_OPEN;
             button->text = strdup("Open");
             break;
 
@@ -184,6 +178,17 @@ static void wifi_configuration_add_manual_security(ui_control_t *control, void *
     }
 
     button->draw(control);
+}
+
+static void wifi_configuration_add_manual_save(ui_control_t *control, void *arg)
+{
+    ui_button_t *button = (ui_button_t *)control;
+    wifi_network_t *network = (wifi_network_t *)arg;
+
+    wifi_network_add(network);
+
+    button->d->hide = true;
+    button->d->parent->controls[0]->hide = true;
 }
 
 static void wifi_configuration_add_manual_dialog(ui_list_item_t *item, void *arg)
@@ -203,7 +208,7 @@ static void wifi_configuration_add_manual_dialog(ui_list_item_t *item, void *arg
         .height = d->tf->font->height + 2*ui_theme->padding,
     };
 
-    manual_entry_t entry = { 0 };
+    wifi_network_t network = { 0 };
 
     ui_dialog_add_label(d, lr, "SSID");
     lr.y += lr.height;
@@ -214,17 +219,17 @@ static void wifi_configuration_add_manual_dialog(ui_list_item_t *item, void *arg
     lr.y = 0;
     lr.x += lr.width;
     lr.width = d->cr.width - lr.width;
-    ui_dialog_add_edit(d, lr, entry.ssid, sizeof(entry.ssid));
+    ui_dialog_add_edit(d, lr, network.ssid, sizeof(network.ssid));
     lr.y += lr.height;
-    ui_edit_t *edit = ui_dialog_add_edit(d, lr, entry.password, sizeof(entry.password));
+    ui_edit_t *edit = ui_dialog_add_edit(d, lr, network.password, sizeof(network.password));
     edit->password = true;
     lr.y += lr.height;
-    ui_dialog_add_button(d, lr, "Open", wifi_configuration_add_manual_security, &entry);
+    ui_dialog_add_button(d, lr, "Open", wifi_configuration_add_manual_security, &network);
 
     lr.y += lr.height * 3 / 2;
     lr.x = 0;
     lr.width = d->cr.width;
-    ui_dialog_add_button(d, lr, "Save", NULL, NULL);
+    ui_dialog_add_button(d, lr, "Save", wifi_configuration_add_manual_save, &network);
 
     ui_dialog_showmodal(d);
     ui_dialog_destroy(d);
