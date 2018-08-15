@@ -241,13 +241,13 @@ static void list_draw(ui_control_t *control)
 
     fill_rectangle(fb, list->tf->clip, ui_theme->control_color);
     draw_rectangle3d(fb, rb, ui_theme->border3d_dark_color, ui_theme->border3d_light_color);
-    if (control == control->d->active && !list->active) {
+    if (control == control->d->active && !list->selected) {
         draw_rectangle(fb, list->tf->clip, DRAW_STYLE_DOTTED, ui_theme->selection_color);
     }
 
-    int index = list_find_index(list, list->selected);
+    int index = list_find_index(list, list->active);
     if (index < 0 && list->item_count > 0) {
-        list->selected = list->items[0];
+        list->active = list->items[0];
         index = 0;
     }
 
@@ -285,7 +285,7 @@ static void list_draw(ui_control_t *control)
         };
 
         if (list->first_index + row == index) {
-            fill_rectangle(fb, r, list->active ? ui_theme->active_highlight_color : ui_theme->inactive_highlight_color);
+            fill_rectangle(fb, r, list->selected ? ui_theme->active_highlight_color : ui_theme->inactive_highlight_color);
         }
         switch (item->type) {
             case LIST_ITEM_TEXT:
@@ -334,14 +334,14 @@ static void list_onselect(ui_control_t *control)
         .height = list->r.height,
     };
 
-    list->active = true;
+    list->selected = true;
     list->draw(control);
     display_update_rect(r);
 
     keypad_info_t keys;
     while (!list->hide) {
         if (keypad_queue_receive(list->d->keypad, &keys, 50/portTICK_RATE_MS)) {
-            int index = list_find_index(list, list->selected);
+            int index = list_find_index(list, list->active);
 
             if (keys.pressed & KEYPAD_UP) {
                 int i;
@@ -351,7 +351,7 @@ static void list_onselect(ui_control_t *control)
                     }
                 }
                 if (i >= 0) {
-                    list->selected = list->items[i];
+                    list->active = list->items[i];
                     list->dirty = true;
                 }
             }
@@ -364,14 +364,14 @@ static void list_onselect(ui_control_t *control)
                     }
                 }
                 if (i < list->item_count) {
-                    list->selected = list->items[i];
+                    list->active = list->items[i];
                     list->dirty = true;
                 }
             }
 
             if (keys.pressed & KEYPAD_A) {
-                if (index >= 0 && list->selected->onselect) {
-                    list->selected->onselect(list->selected, list->selected->arg);
+                if (index >= 0 && list->active->onselect) {
+                    list->active->onselect(list->active, list->active->arg);
                 }
             }
 
@@ -392,7 +392,7 @@ static void list_onselect(ui_control_t *control)
         periodic_tick();
     }
 
-    list->active = false;
+    list->selected = false;
     list->draw(control);
     list->dirty = true;
 }
@@ -414,7 +414,7 @@ ui_list_t *ui_dialog_add_list(ui_dialog_t *d, rect_t r)
     return list;
 }
 
-static struct ui_list_item_t *list_insert_new(ui_list_t *list, int index)
+static ui_list_item_t *list_insert_new(ui_list_t *list, int index)
 {
     if (index < 0) {
         index = list->item_count + index;
@@ -435,7 +435,7 @@ static struct ui_list_item_t *list_insert_new(ui_list_t *list, int index)
     return item;
 }
 
-void ui_list_insert_text(ui_list_t *list, int index, char *text, ui_list_item_onselect_t onselect, void *arg)
+ui_list_item_t *ui_list_insert_text(ui_list_t *list, int index, char *text, ui_list_item_onselect_t onselect, void *arg)
 {
     ui_list_item_t *item = list_insert_new(list, index);
     item->type = LIST_ITEM_TEXT;
@@ -444,23 +444,28 @@ void ui_list_insert_text(ui_list_t *list, int index, char *text, ui_list_item_on
     item->onselect = onselect;
     item->arg = arg;
     list->dirty = true;
+
+    return item;
 }
 
-void ui_list_append_text(ui_list_t *list, char *text, ui_list_item_onselect_t onselect, void *arg)
+ui_list_item_t *ui_list_append_text(ui_list_t *list, char *text, ui_list_item_onselect_t onselect, void *arg)
 {
-    ui_list_insert_text(list, list->item_count, text, onselect, arg);
+    return ui_list_insert_text(list, list->item_count, text, onselect, arg);
 }
 
-void ui_list_insert_separator(ui_list_t *list, int index)
+ui_list_item_t *ui_list_insert_separator(ui_list_t *list, int index)
 {
     ui_list_item_t *item = list_insert_new(list, index);
     item->type = LIST_ITEM_SEPARATOR;
     item->list = list;
+    list->dirty = true;
+
+    return item;
 }
 
-void ui_list_append_separator(ui_list_t *list)
+ui_list_item_t *ui_list_append_separator(ui_list_t *list)
 {
-    ui_list_insert_separator(list, list->item_count);
+    return ui_list_insert_separator(list, list->item_count);
 }
 
 void ui_list_remove(ui_list_t *list, int index)

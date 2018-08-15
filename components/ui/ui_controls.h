@@ -111,9 +111,9 @@ typedef struct ui_list_t {
     ui_control_onselect_t onselect;
     ui_control_free_t free;
 
-    bool active;
+    bool selected;
     ui_list_item_t **items;
-    ui_list_item_t *selected;
+    ui_list_item_t *active;
     size_t item_count;
     int first_index;
     int shift;
@@ -133,8 +133,8 @@ typedef struct ui_list_item_t {
 } ui_list_item_t;
 
 ui_list_t *ui_dialog_add_list(ui_dialog_t *d, rect_t r);
-void ui_list_insert_text(ui_list_t *list, int index, char *text, ui_list_item_onselect_t onselect, void *arg);
-void ui_list_append_text(ui_list_t *list, char *text, ui_list_item_onselect_t onselect, void *arg);
-void ui_list_insert_separator(ui_list_t *list, int index);
-void ui_list_append_separator(ui_list_t *list);
+ui_list_item_t *ui_list_insert_text(ui_list_t *list, int index, char *text, ui_list_item_onselect_t onselect, void *arg);
+ui_list_item_t *ui_list_append_text(ui_list_t *list, char *text, ui_list_item_onselect_t onselect, void *arg);
+ui_list_item_t *ui_list_insert_separator(ui_list_t *list, int index);
+ui_list_item_t *ui_list_append_separator(ui_list_t *list);
 void ui_list_remove(ui_list_t *list, int index);
