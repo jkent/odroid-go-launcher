@@ -26,10 +26,10 @@
 #include "wifi_dialog.h"
 
 
+static void launcher_task(void *arg);
+
 void app_main(void)
 {
-    QueueHandle_t keypad;
-
     display_init();
     backlight_init();
 
@@ -60,12 +60,23 @@ void app_main(void)
     wifi_init();
     statusbar_init();
 
-    keypad = keypad_get_queue();
+    tf_free(tf);
 
-    s = "Press Menu button for the menu.";
-    m = tf_get_str_metrics(tf, s);
-    p.x = fb->width/2 - tf->width/2;
-    p.y = fb->height/2 - m.height/2;
+    xTaskCreate(launcher_task, "launcher", 8192, NULL, 5, NULL);
+}
+
+static void launcher_task(void *arg)
+{
+    tf_t *tf = tf_new(&font_OpenSans_Regular_11X12, 0xFFFF, 240, TF_ALIGN_CENTER | TF_WORDWRAP);
+
+    QueueHandle_t keypad = keypad_get_queue();
+
+    char *s = "Press Menu button for the menu.";
+    tf_metrics_t m = tf_get_str_metrics(tf, s);
+    point_t p = {
+        .x = fb->width/2 - tf->width/2,
+        .y = fb->height/2 - m.height/2,
+    };
     memset(fb->data + fb->width * 16 * fb->bytes_per_pixel, 0, fb->width * (fb->height - 32) * fb->bytes_per_pixel);
     tf_draw_str(fb, tf, s, p);
     display_update();
