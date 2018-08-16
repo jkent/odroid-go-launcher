@@ -135,13 +135,11 @@ static void edit_free(ui_control_t *control)
 {
     ui_edit_t *edit = (ui_edit_t *)control;
 
-    if (edit->text) {
-        free(edit->text);
-    }
+    tf_free(edit->tf);
     free(edit);
 }
 
-ui_edit_t *ui_dialog_add_edit(ui_dialog_t *d, rect_t r, const char *text, size_t text_len)
+ui_edit_t *ui_dialog_add_edit(ui_dialog_t *d, rect_t r, char *text, size_t text_len)
 {
     ui_edit_t *edit = calloc(1, sizeof(ui_edit_t));
 
@@ -151,10 +149,7 @@ ui_edit_t *ui_dialog_add_edit(ui_dialog_t *d, rect_t r, const char *text, size_t
     edit->draw = edit_draw;
     edit->onselect = edit_onselect;
     edit->free = edit_free;
-    edit->text = malloc(text_len);
-    assert(edit->text != NULL);
-    strncpy(edit->text, text, text_len);
-    edit->text[text_len - 1] = '\0';
+    edit->text = text;
     edit->text_len = text_len;
     edit->tf = tf_new(&font_OpenSans_Regular_11X12, ui_theme->text_color, edit->r.width - 2*ui_theme->padding, TF_ELIDE);
 

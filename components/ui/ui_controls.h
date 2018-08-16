@@ -76,7 +76,7 @@ typedef struct ui_edit_t {
     bool password;
 } ui_edit_t;
 
-ui_edit_t *ui_dialog_add_edit(ui_dialog_t *d, rect_t r, const char *text, size_t text_len);
+ui_edit_t *ui_dialog_add_edit(ui_dialog_t *d, rect_t r, char *text, size_t text_len);
 
 
 /* ui_label */
