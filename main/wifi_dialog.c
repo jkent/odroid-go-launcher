@@ -11,7 +11,6 @@
 
 
 static periodic_handle_t s_ph_update = NULL;
-static periodic_handle_t s_ph_scan = NULL;
 static wifi_ap_record_t **s_scan_records = NULL;
 static size_t s_scan_records_len = 0;
 
@@ -102,7 +101,7 @@ static void status_refresh(periodic_handle_t handle, void *arg)
     }
     if (wifi_enabled && wifi_connected) {
         char ip[16];
-        ip4addr_ntoa_r(&my_ip, ip, sizeof(ip));
+        ip4addr_ntoa_r(&wifi_ip, ip, sizeof(ip));
         sprintf(buf, "IP: %s", ip);
         label->text = strdup(buf);
     }
@@ -188,10 +187,11 @@ static void wifi_configuration_add_manual_save(ui_control_t *control, void *arg)
     ui_button_t *button = (ui_button_t *)control;
     wifi_network_t *network = (wifi_network_t *)arg;
 
-    wifi_network_add(network);
-
     periodic_unregister(s_ph_update);
-    periodic_unregister(s_ph_scan);
+    wifi_register_scan_done_callback(NULL, NULL);
+    ESP_ERROR_CHECK(esp_wifi_scan_stop());
+
+    wifi_network_add(network);
 
     button->d->hide = true;
     button->d->parent->controls[0]->hide = true;
@@ -301,9 +301,8 @@ static void scan_update_list(periodic_handle_t handle, void *arg)
     }
 }
 
-static void scan_restart(periodic_handle_t handle, void *arg)
+static void do_scan(void *arg)
 {
-    ESP_ERROR_CHECK(esp_wifi_scan_stop());
     wifi_scan_config_t config = { 0 };
     ESP_ERROR_CHECK(esp_wifi_scan_start(&config, false));
 }
@@ -329,17 +328,17 @@ static void wifi_configuration_add_dialog(ui_list_item_t *item, void *arg)
 
     if (wifi_enabled) {
         ui_list_append_separator(list);
-        scan_restart(NULL, NULL);
+        do_scan(NULL);
+        wifi_register_scan_done_callback(do_scan, NULL);
         s_ph_update = periodic_register(100/portTICK_PERIOD_MS, scan_update_list, list);
-        s_ph_scan = periodic_register(2000/portTICK_PERIOD_MS, scan_restart, NULL);
     }
 
     ui_dialog_showmodal(d);
     ui_dialog_destroy(d);
 
     if (wifi_enabled) {
+        wifi_register_scan_done_callback(NULL, NULL);
         periodic_unregister(s_ph_update);
-        periodic_unregister(s_ph_scan);
         for (int i = 0; i < s_scan_records_len; i++) {
             free(s_scan_records[i]);
         }
