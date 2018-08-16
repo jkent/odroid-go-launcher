@@ -10,6 +10,7 @@
 #include "wifi.h"
 
 
+static periodic_handle_t s_ph_update = NULL;
 static periodic_handle_t s_ph_scan = NULL;
 static wifi_ap_record_t **s_scan_records = NULL;
 static size_t s_scan_records_len = 0;
@@ -188,6 +189,8 @@ static void wifi_configuration_add_manual_save(ui_control_t *control, void *arg)
     wifi_network_t *network = (wifi_network_t *)arg;
 
     wifi_network_add(network);
+
+    periodic_unregister(s_ph_update);
     periodic_unregister(s_ph_scan);
 
     button->d->hide = true;
@@ -324,12 +327,10 @@ static void wifi_configuration_add_dialog(ui_list_item_t *item, void *arg)
     ui_list_t *list = ui_dialog_add_list(d, lr);
     ui_list_append_text(list, "Manual entry...", wifi_configuration_add_manual_dialog, NULL);
 
-    periodic_handle_t ph_update = NULL;
-
     if (wifi_enabled) {
         ui_list_append_separator(list);
         scan_restart(NULL, NULL);
-        ph_update = periodic_register(100/portTICK_PERIOD_MS, scan_update_list, list);
+        s_ph_update = periodic_register(100/portTICK_PERIOD_MS, scan_update_list, list);
         s_ph_scan = periodic_register(2000/portTICK_PERIOD_MS, scan_restart, NULL);
     }
 
@@ -337,7 +338,7 @@ static void wifi_configuration_add_dialog(ui_list_item_t *item, void *arg)
     ui_dialog_destroy(d);
 
     if (wifi_enabled) {
-        periodic_unregister(ph_update);
+        periodic_unregister(s_ph_update);
         periodic_unregister(s_ph_scan);
         for (int i = 0; i < s_scan_records_len; i++) {
             free(s_scan_records[i]);
