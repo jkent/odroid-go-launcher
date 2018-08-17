@@ -197,15 +197,17 @@ static void wifi_configuration_add_manual_save(ui_control_t *control, void *arg)
     button->d->parent->controls[0]->hide = true;
 }
 
-static void wifi_configuration_add_manual_dialog(ui_list_item_t *item, void *arg)
+static void wifi_configuration_add_entry_dialog(ui_list_item_t *item, void *arg)
 {
+    wifi_ap_record_t *record = (wifi_ap_record_t *)arg;
+
     rect_t r = {
         .x = fb->width/2 - 320/2,
         .y = fb->height/2 - 91/2,
         .width = 320,
         .height = 91,
     };
-    ui_dialog_t *d = ui_dialog_new(item->list->d, r, "Manual Wi-Fi Entry");
+    ui_dialog_t *d = ui_dialog_new(item->list->d, r, "Add Wi-Fi Entry");
 
     rect_t lr = {
         .x = 0,
@@ -215,6 +217,11 @@ static void wifi_configuration_add_manual_dialog(ui_list_item_t *item, void *arg
     };
 
     wifi_network_t network = { 0 };
+
+    if (record) {
+        strncpy(network.ssid, (char *)record->ssid, sizeof(network.ssid));
+        network.authmode = record->authmode;
+    }
 
     ui_dialog_add_label(d, lr, "SSID");
     lr.y += lr.height;
@@ -230,7 +237,29 @@ static void wifi_configuration_add_manual_dialog(ui_list_item_t *item, void *arg
     ui_edit_t *edit = ui_dialog_add_edit(d, lr, network.password, sizeof(network.password));
     edit->password = true;
     lr.y += lr.height;
-    ui_dialog_add_button(d, lr, "Open", wifi_configuration_add_manual_security, &network);
+    char *label = "Open";
+    switch (network.authmode) {
+        case WIFI_AUTH_WEP:
+            label = "WEP";
+            break;
+
+        case WIFI_AUTH_WPA_PSK:
+            label = "WPA-PSK";
+            break;
+
+        case WIFI_AUTH_WPA2_PSK:
+            label = "WPA2-PSK";
+            break;
+
+        case WIFI_AUTH_WPA_WPA2_PSK:
+            label = "WPA/WPA2-PSK";
+            break;
+
+        default:
+            network.authmode = 0;
+            break;
+    }
+    ui_dialog_add_button(d, lr, label, wifi_configuration_add_manual_security, &network);
 
     lr.y += lr.height * 3 / 2;
     lr.x = 0;
@@ -297,7 +326,7 @@ static void scan_update_list(periodic_handle_t handle, void *arg)
         s_scan_records_len += 1;
 
         sprintf(s, "%s [%d]", record.ssid, record.rssi);
-        ui_list_insert_text(list, i + 2, s, NULL, s_scan_records[i]);
+        ui_list_insert_text(list, i + 2, s, wifi_configuration_add_entry_dialog, s_scan_records[i]);
     }
 }
 
@@ -324,7 +353,7 @@ static void wifi_configuration_add_dialog(ui_list_item_t *item, void *arg)
         .height = d->cr.height,
     };
     ui_list_t *list = ui_dialog_add_list(d, lr);
-    ui_list_append_text(list, "Manual entry...", wifi_configuration_add_manual_dialog, NULL);
+    ui_list_append_text(list, "Manual entry...", wifi_configuration_add_entry_dialog, NULL);
 
     if (wifi_enabled) {
         ui_list_append_separator(list);
@@ -339,6 +368,7 @@ static void wifi_configuration_add_dialog(ui_list_item_t *item, void *arg)
     if (wifi_enabled) {
         wifi_register_scan_done_callback(NULL, NULL);
         periodic_unregister(s_ph_update);
+        /* don't stop the scan because we could be attempting to connect! */
         for (int i = 0; i < s_scan_records_len; i++) {
             free(s_scan_records[i]);
         }
