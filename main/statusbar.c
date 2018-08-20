@@ -17,7 +17,7 @@
 
 typedef struct {
     bool sdcard_present;
-    bool wifi_enabled;
+    wifi_state_t wifi_state;
     int wifi_bars;
 } stateinfo_t;
 
@@ -28,19 +28,19 @@ static stateinfo_t last_state;
 
 static int rssi_to_bars(int rssi, int levels)
 {
-    if (rssi < -100) {
+    if (rssi <= -100) {
         return 0;
-    } else if (rssi > -55) {
+    } else if (rssi >= -55) {
         return levels - 1;
     } else {
-       return (rssi + 55) * 45 / (levels - 1);
+        return (rssi + 100) * (levels - 1) / 45;
     }
 }
 
 static void statusbar_update(periodic_handle_t handle, void *arg)
 {
     int wifi_bars = 0;
-    if (wifi_enabled && wifi_connected) {
+    if (wifi_state == WIFI_STATE_CONNECTED) {
         wifi_ap_record_t record;
         ESP_ERROR_CHECK(esp_wifi_sta_get_ap_info(&record));
         wifi_bars = rssi_to_bars(record.rssi, 5);
@@ -48,7 +48,7 @@ static void statusbar_update(periodic_handle_t handle, void *arg)
 
     stateinfo_t state = {
         .sdcard_present = sdcard_present(),
-        .wifi_enabled = wifi_enabled,
+        .wifi_state = wifi_state,
         .wifi_bars = wifi_bars,
     };
 
@@ -69,7 +69,7 @@ static void statusbar_update(periodic_handle_t handle, void *arg)
         tf_draw_glyph(fb, s_icons, FONT_ICON_SDCARD, p);
         p.x -= 16;
     }
-    if (state.wifi_enabled) {
+    if (wifi_state != WIFI_STATE_DISABLED) {
         tf_draw_glyph(fb, s_icons, FONT_ICON_WIFI0 + state.wifi_bars, p);
         p.x -= 16;
     }

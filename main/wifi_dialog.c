@@ -17,7 +17,7 @@ static size_t s_scan_records_len = 0;
 
 static void wifi_configuration_enable(ui_list_item_t *item, void *arg)
 {
-    if (wifi_enabled) {
+    if (wifi_state != WIFI_STATE_DISABLED) {
         wifi_disable();
         free(item->text);
         item->text = strdup("Enable Wi-Fi");
@@ -35,7 +35,7 @@ static void status_refresh(periodic_handle_t handle, void *arg)
     char buf[128];
     wifi_ap_record_t record;
 
-    if (wifi_enabled && wifi_connected) {
+    if (wifi_state == WIFI_STATE_CONNECTED) {
         ESP_ERROR_CHECK(esp_wifi_sta_get_ap_info(&record))
     }
 
@@ -43,8 +43,25 @@ static void status_refresh(periodic_handle_t handle, void *arg)
     if (label->text) {
         free(label->text);
     }
-    sprintf(buf, "Status: %s", wifi_enabled ?
-        (wifi_connected ? "Connected" : "Disconnected") : "Disabled");
+    char *status = "";
+    switch (wifi_state) {
+        case WIFI_STATE_DISABLED:
+            status = "Disabled";
+            break;
+        case WIFI_STATE_DISCONNECTED:
+            status = "Disconnected";
+            break;
+        case WIFI_STATE_CONNECTING:
+            status = "Connecting";
+            break;
+        case WIFI_STATE_CONNECTED:
+            status = "Connected";
+            break;
+        default:
+            ; /* do nothing */
+    }
+
+    sprintf(buf, "Status: %s", status);
     label->text = strdup(buf);
     label->draw((ui_control_t *)label);
     label->dirty = true;
@@ -52,8 +69,9 @@ static void status_refresh(periodic_handle_t handle, void *arg)
     label = (ui_label_t *)d->controls[1];
     if (label->text) {
         free(label->text);
+        label->text = NULL;
     }
-    if (wifi_enabled && wifi_connected) {
+    if (wifi_state == WIFI_STATE_CONNECTED) {
         sprintf(buf, "SSID: %s", record.ssid);
         label->text = strdup(buf);
     }
@@ -63,8 +81,9 @@ static void status_refresh(periodic_handle_t handle, void *arg)
     label = (ui_label_t *)d->controls[2];
     if (label->text) {
         free(label->text);
+        label->text = NULL;
     }
-    if (wifi_enabled && wifi_connected) {
+    if (wifi_state == WIFI_STATE_CONNECTED) {
         sprintf(buf, "BSSID: %02X:%02X:%02X:%02X:%02X:%02X", record.bssid[0],
             record.bssid[1], record.bssid[2], record.bssid[3], record.bssid[4],
             record.bssid[5]);
@@ -76,8 +95,9 @@ static void status_refresh(periodic_handle_t handle, void *arg)
     label = (ui_label_t *)d->controls[3];
     if (label->text) {
         free(label->text);
+        label->text = NULL;
     }
-    if (wifi_enabled && wifi_connected) {
+    if (wifi_state == WIFI_STATE_CONNECTED) {
         sprintf(buf, "Channel: %d", record.primary);
         label->text = strdup(buf);
     }
@@ -87,8 +107,9 @@ static void status_refresh(periodic_handle_t handle, void *arg)
     label = (ui_label_t *)d->controls[4];
     if (label->text) {
         free(label->text);
+        label->text = NULL;
     }
-    if (wifi_enabled && wifi_connected) {
+    if (wifi_state == WIFI_STATE_CONNECTED) {
         sprintf(buf, "RSSI: %d", record.rssi);
         label->text = strdup(buf);
     }
@@ -98,8 +119,9 @@ static void status_refresh(periodic_handle_t handle, void *arg)
     label = (ui_label_t *)d->controls[5];
     if (label->text) {
         free(label->text);
+        label->text = NULL;
     }
-    if (wifi_enabled && wifi_connected) {
+    if (wifi_state == WIFI_STATE_CONNECTED) {
         char ip[16];
         ip4addr_ntoa_r(&wifi_ip, ip, sizeof(ip));
         sprintf(buf, "IP: %s", ip);
@@ -138,7 +160,7 @@ static void wifi_status_dialog(ui_list_item_t *item, void *arg)
     lr.y += lr.height;
     ui_dialog_add_label(d, lr, NULL);
 
-    periodic_handle_t ph = periodic_register(100/portTICK_PERIOD_MS, status_refresh, d);
+    periodic_handle_t ph = periodic_register(250/portTICK_PERIOD_MS, status_refresh, d);
     ui_dialog_showmodal(d);
     ui_dialog_destroy(d);
     periodic_unregister(ph);
@@ -355,7 +377,7 @@ static void wifi_configuration_add_dialog(ui_list_item_t *item, void *arg)
     ui_list_t *list = ui_dialog_add_list(d, lr);
     ui_list_append_text(list, "Manual entry...", wifi_configuration_add_entry_dialog, NULL);
 
-    if (wifi_enabled) {
+    if (wifi_state != WIFI_STATE_DISABLED) {
         ui_list_append_separator(list);
         do_scan(NULL);
         wifi_register_scan_done_callback(do_scan, NULL);
@@ -365,7 +387,7 @@ static void wifi_configuration_add_dialog(ui_list_item_t *item, void *arg)
     ui_dialog_showmodal(d);
     ui_dialog_destroy(d);
 
-    if (wifi_enabled) {
+    if (wifi_state != WIFI_STATE_DISABLED) {
         wifi_register_scan_done_callback(NULL, NULL);
         periodic_unregister(s_ph_update);
         /* don't stop the scan because we could be attempting to connect! */
@@ -398,7 +420,7 @@ void wifi_configuration_dialog(ui_list_item_t *item, void *arg)
     };
     ui_list_t *list = ui_dialog_add_list(d, lr);
 
-    ui_list_append_text(list, wifi_enabled ? "Disable Wi-Fi" : "Enable Wi-Fi", wifi_configuration_enable, NULL);
+    ui_list_append_text(list, wifi_state != WIFI_STATE_DISABLED ? "Disable Wi-Fi" : "Enable Wi-Fi", wifi_configuration_enable, NULL);
     ui_list_append_text(list, "Wi-Fi status...", wifi_status_dialog, NULL);
     ui_list_append_text(list, "Add network...", wifi_configuration_add_dialog, NULL);
     ui_list_append_text(list, "Forget network...", NULL, NULL);
