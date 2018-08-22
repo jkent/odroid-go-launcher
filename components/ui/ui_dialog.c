@@ -282,3 +282,8 @@ ui_control_t *ui_dialog_find_control(ui_dialog_t *d, direction_t dir)
     }
     return hidest;
 }
+
+ui_dialog_t *ui_dialog_get_top(void)
+{
+    return top;
+}

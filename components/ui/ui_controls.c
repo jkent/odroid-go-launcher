@@ -212,6 +212,20 @@ ui_label_t *ui_dialog_add_label(ui_dialog_t *d, rect_t r, const char *text)
     return label;
 }
 
+void ui_label_set_text(ui_label_t *label, const char *text)
+{
+    if (label->text) {
+        free(label->text);
+        label->text = NULL;
+    }
+    if (text) {
+        label->text = strdup(text);
+    }
+    if (label->d == ui_dialog_get_top()) {
+        label->draw((ui_control_t *)label);
+        label->dirty = true;
+    }
+}
 
 /* ui_list */
 

@@ -97,6 +97,7 @@ typedef struct ui_label_t {
 } ui_label_t;
 
 ui_label_t *ui_dialog_add_label(ui_dialog_t *d, rect_t r, const char *text);
+void ui_label_set_text(ui_label_t *label, const char *text);
 
 
 /* ui_list */

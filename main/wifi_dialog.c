@@ -43,9 +43,6 @@ static void status_refresh(periodic_handle_t handle, void *arg)
     }
 
     ui_label_t *label = (ui_label_t *)d->controls[0];
-    if (label->text) {
-        free(label->text);
-    }
     char *status = "";
     switch (wifi_state) {
         case WIFI_STATE_DISABLED:
@@ -53,6 +50,9 @@ static void status_refresh(periodic_handle_t handle, void *arg)
             break;
         case WIFI_STATE_DISCONNECTED:
             status = "Disconnected";
+            break;
+        case WIFI_STATE_SCANNING:
+            status = "Scanning";
             break;
         case WIFI_STATE_CONNECTING:
             status = "Connecting";
@@ -63,72 +63,44 @@ static void status_refresh(periodic_handle_t handle, void *arg)
         default:
             ; /* do nothing */
     }
-
     sprintf(buf, "Status: %s", status);
-    label->text = strdup(buf);
-    label->draw((ui_control_t *)label);
-    label->dirty = true;
+    ui_label_set_text(label, buf);
 
     label = (ui_label_t *)d->controls[1];
-    if (label->text) {
-        free(label->text);
-        label->text = NULL;
-    }
+    ui_label_set_text(label, NULL);
     if (wifi_state == WIFI_STATE_CONNECTED) {
         sprintf(buf, "SSID: %s", record.ssid);
-        label->text = strdup(buf);
+        ui_label_set_text(label, buf);
     }
-    label->draw((ui_control_t *)label);
-    label->dirty = true;
 
     label = (ui_label_t *)d->controls[2];
-    if (label->text) {
-        free(label->text);
-        label->text = NULL;
-    }
+    ui_label_set_text(label, NULL);
     if (wifi_state == WIFI_STATE_CONNECTED) {
         sprintf(buf, "BSSID: " MACSTR, MAC2STR(record.bssid));
-        label->text = strdup(buf);
+        ui_label_set_text(label, buf);
     }
-    label->draw((ui_control_t *)label);
-    label->dirty = true;
 
     label = (ui_label_t *)d->controls[3];
-    if (label->text) {
-        free(label->text);
-        label->text = NULL;
-    }
+    ui_label_set_text(label, NULL);
     if (wifi_state == WIFI_STATE_CONNECTED) {
         sprintf(buf, "Channel: %d", record.primary);
-        label->text = strdup(buf);
+        ui_label_set_text(label, buf);
     }
-    label->draw((ui_control_t *)label);
-    label->dirty = true;
 
     label = (ui_label_t *)d->controls[4];
-    if (label->text) {
-        free(label->text);
-        label->text = NULL;
-    }
+    ui_label_set_text(label, NULL);
     if (wifi_state == WIFI_STATE_CONNECTED) {
         sprintf(buf, "RSSI: %d", record.rssi);
-        label->text = strdup(buf);
+        ui_label_set_text(label, buf);
     }
-    label->draw((ui_control_t *)label);
-    label->dirty = true;
 
     label = (ui_label_t *)d->controls[5];
-    if (label->text) {
-        free(label->text);
-        label->text = NULL;
-    }
+    ui_label_set_text(label, NULL);
     if (wifi_state == WIFI_STATE_CONNECTED) {
         ip4_addr_t ip = wifi_get_ip();
         sprintf(buf, "IP: " IPSTR, IP2STR(&ip));
-        label->text = strdup(buf);
+        ui_label_set_text(label, buf);
     }
-    label->draw((ui_control_t *)label);
-    label->dirty = true;
 }
 
 static void status_dialog(ui_list_item_t *item, void *arg)
@@ -161,6 +133,7 @@ static void status_dialog(ui_list_item_t *item, void *arg)
     ui_dialog_add_label(d, lr, NULL);
 
     periodic_handle_t ph = periodic_register(250/portTICK_PERIOD_MS, status_refresh, d);
+    status_refresh(ph, d);
     ui_dialog_showmodal(d);
     ui_dialog_destroy(d);
     periodic_unregister(ph);
@@ -482,9 +455,8 @@ static void networks_dialog(ui_list_item_t *item, void *arg)
     ui_list_append_text(list, "Add network...", add_network_dialog, NULL);
     ui_list_append_separator(list);
 
-    wifi_network_t *network = NULL;
-    while ((network = wifi_network_iterate(network))) {
-        ui_list_append_text(list, network->ssid, networks_popup, network);
+    for (size_t i = 0; i < wifi_network_count; i++) {
+        ui_list_append_text(list, wifi_networks[i]->ssid, networks_popup, wifi_networks[i]);
     }
 
     ui_dialog_showmodal(d);

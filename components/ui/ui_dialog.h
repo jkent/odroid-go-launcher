@@ -44,3 +44,4 @@ void ui_dialog_hide(ui_dialog_t *d);
 void ui_dialog_unwind(void);
 void ui_dialog_add_control(ui_dialog_t *d, ui_control_t *control);
 ui_control_t *ui_dialog_find_control(ui_dialog_t *d, direction_t dir);
+ui_dialog_t *ui_dialog_get_top(void);
