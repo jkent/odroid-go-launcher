@@ -40,6 +40,7 @@ static int rssi_to_bars(int rssi, int levels)
 static void statusbar_update(periodic_handle_t handle, void *arg)
 {
     int wifi_bars = 0;
+    wifi_state_t wifi_state = wifi_get_state();
     if (wifi_state == WIFI_STATE_CONNECTED) {
         wifi_ap_record_t record;
         ESP_ERROR_CHECK(esp_wifi_sta_get_ap_info(&record));

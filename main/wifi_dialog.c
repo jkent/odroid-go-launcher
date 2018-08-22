@@ -15,8 +15,10 @@ static wifi_ap_record_t **s_scan_records = NULL;
 static size_t s_scan_records_len = 0;
 
 
-static void wifi_configuration_enable(ui_list_item_t *item, void *arg)
+static void enable_toggle(ui_list_item_t *item, void *arg)
 {
+    wifi_state_t wifi_state = wifi_get_state();
+
     if (wifi_state != WIFI_STATE_DISABLED) {
         wifi_disable();
         free(item->text);
@@ -34,6 +36,7 @@ static void status_refresh(periodic_handle_t handle, void *arg)
     ui_dialog_t *d = (ui_dialog_t *)arg;
     char buf[128];
     wifi_ap_record_t record;
+    wifi_state_t wifi_state = wifi_get_state();
 
     if (wifi_state == WIFI_STATE_CONNECTED) {
         ESP_ERROR_CHECK(esp_wifi_sta_get_ap_info(&record))
@@ -84,9 +87,7 @@ static void status_refresh(periodic_handle_t handle, void *arg)
         label->text = NULL;
     }
     if (wifi_state == WIFI_STATE_CONNECTED) {
-        sprintf(buf, "BSSID: %02X:%02X:%02X:%02X:%02X:%02X", record.bssid[0],
-            record.bssid[1], record.bssid[2], record.bssid[3], record.bssid[4],
-            record.bssid[5]);
+        sprintf(buf, "BSSID: " MACSTR, MAC2STR(record.bssid));
         label->text = strdup(buf);
     }
     label->draw((ui_control_t *)label);
@@ -122,16 +123,15 @@ static void status_refresh(periodic_handle_t handle, void *arg)
         label->text = NULL;
     }
     if (wifi_state == WIFI_STATE_CONNECTED) {
-        char ip[16];
-        ip4addr_ntoa_r(&wifi_ip, ip, sizeof(ip));
-        sprintf(buf, "IP: %s", ip);
+        ip4_addr_t ip = wifi_get_ip();
+        sprintf(buf, "IP: " IPSTR, IP2STR(&ip));
         label->text = strdup(buf);
     }
     label->draw((ui_control_t *)label);
     label->dirty = true;
 }
 
-static void wifi_status_dialog(ui_list_item_t *item, void *arg)
+static void status_dialog(ui_list_item_t *item, void *arg)
 {
     rect_t r = {
         .x = fb->width/2 - 160/2,
@@ -166,7 +166,7 @@ static void wifi_status_dialog(ui_list_item_t *item, void *arg)
     periodic_unregister(ph);
 }
 
-static void wifi_configuration_add_manual_security(ui_control_t *control, void *arg)
+static void add_manual_security(ui_control_t *control, void *arg)
 {
     ui_button_t *button = (ui_button_t *)control;
     wifi_network_t *network = (wifi_network_t *)arg;
@@ -193,33 +193,44 @@ static void wifi_configuration_add_manual_security(ui_control_t *control, void *
             break;
 
         case WIFI_AUTH_WPA2_PSK:
+            network->authmode = WIFI_AUTH_WPA_WPA2_PSK;
+            button->text = strdup("WPA/WPA2-PSK");
+            break;
+
+        case WIFI_AUTH_WPA_WPA2_PSK:
+        default:
             network->authmode = WIFI_AUTH_OPEN;
             button->text = strdup("Open");
             break;
-
-        default:
-            break;
-    }
+   }
 
     button->draw(control);
 }
 
-static void wifi_configuration_add_manual_save(ui_control_t *control, void *arg)
+static void networks_popup(ui_list_item_t *item, void *arg);
+
+static void add_entry_save(ui_control_t *control, void *arg)
 {
     ui_button_t *button = (ui_button_t *)control;
     wifi_network_t *network = (wifi_network_t *)arg;
 
+    if (strlen(network->ssid) == 0) {
+        return;
+    }
+
     periodic_unregister(s_ph_update);
     wifi_register_scan_done_callback(NULL, NULL);
-    ESP_ERROR_CHECK(esp_wifi_scan_stop());
 
-    wifi_network_add(network);
+    size_t i = wifi_network_add(network);
+
+    ui_list_t *list = (ui_list_t *)button->d->parent->parent->controls[0];
+    ui_list_insert_text(list, i + 2, wifi_networks[i]->ssid, networks_popup, wifi_networks[i]);
 
     button->d->hide = true;
     button->d->parent->controls[0]->hide = true;
 }
 
-static void wifi_configuration_add_entry_dialog(ui_list_item_t *item, void *arg)
+static void add_entry_dialog(ui_list_item_t *item, void *arg)
 {
     wifi_ap_record_t *record = (wifi_ap_record_t *)arg;
 
@@ -281,12 +292,12 @@ static void wifi_configuration_add_entry_dialog(ui_list_item_t *item, void *arg)
             network.authmode = 0;
             break;
     }
-    ui_dialog_add_button(d, lr, label, wifi_configuration_add_manual_security, &network);
+    ui_dialog_add_button(d, lr, label, add_manual_security, &network);
 
     lr.y += lr.height * 3 / 2;
     lr.x = 0;
     lr.width = d->cr.width;
-    ui_dialog_add_button(d, lr, "Save", wifi_configuration_add_manual_save, &network);
+    ui_dialog_add_button(d, lr, "Save", add_entry_save, &network);
 
     ui_dialog_showmodal(d);
     ui_dialog_destroy(d);
@@ -348,7 +359,7 @@ static void scan_update_list(periodic_handle_t handle, void *arg)
         s_scan_records_len += 1;
 
         sprintf(s, "%s [%d]", record.ssid, record.rssi);
-        ui_list_insert_text(list, i + 2, s, wifi_configuration_add_entry_dialog, s_scan_records[i]);
+        ui_list_insert_text(list, i + 2, s, add_entry_dialog, s_scan_records[i]);
     }
 }
 
@@ -358,7 +369,7 @@ static void do_scan(void *arg)
     ESP_ERROR_CHECK(esp_wifi_scan_start(&config, false));
 }
 
-static void wifi_configuration_add_dialog(ui_list_item_t *item, void *arg)
+static void add_network_dialog(ui_list_item_t *item, void *arg)
 {
     rect_t r = {
         .x = fb->width/2 - 240/2,
@@ -375,7 +386,9 @@ static void wifi_configuration_add_dialog(ui_list_item_t *item, void *arg)
         .height = d->cr.height,
     };
     ui_list_t *list = ui_dialog_add_list(d, lr);
-    ui_list_append_text(list, "Manual entry...", wifi_configuration_add_entry_dialog, NULL);
+    ui_list_append_text(list, "Manual entry...", add_entry_dialog, NULL);
+
+    wifi_state_t wifi_state = wifi_get_state();
 
     if (wifi_state != WIFI_STATE_DISABLED) {
         ui_list_append_separator(list);
@@ -402,6 +415,93 @@ static void wifi_configuration_add_dialog(ui_list_item_t *item, void *arg)
     }
 }
 
+static void connect_network(ui_list_item_t *item, void *arg) 
+{
+    struct wifi_network_t *network = (struct wifi_network_t *)arg;
+    wifi_connect_network(network);
+
+    item->list->hide = true;
+}
+
+static void forget_network(ui_list_item_t *item, void *arg)
+{
+    struct wifi_network_t *network = (struct wifi_network_t *)arg;
+
+    int i = wifi_network_delete(network);
+    ui_list_t *list = (ui_list_t *)item->list->d->parent->active;
+    ui_list_remove(list, i + 2);
+
+    list->dirty = true;
+    item->list->hide = true;
+}
+
+static void networks_popup(ui_list_item_t *item, void *arg)
+{
+    struct wifi_network_t *network = (struct wifi_network_t *)arg;
+
+    rect_t r = {
+        .x = fb->width/2 - 120/2,
+        .y = fb->height/2 - 90/2,
+        .width = 120,
+        .height = 90,
+    };
+    ui_dialog_t *d = ui_dialog_new(item->list->d, r, NULL);
+
+    rect_t lr = {
+        .x = 0,
+        .y = 0,
+        .width = d->cr.width,
+        .height = d->cr.height,
+    };
+    ui_list_t *list = ui_dialog_add_list(d, lr);
+    ui_list_append_text(list, "Connect", connect_network, network);
+    ui_list_append_text(list, "Forget", forget_network, network);
+
+    ui_dialog_showmodal(d);
+    ui_dialog_destroy(d);
+}
+
+static void networks_dialog(ui_list_item_t *item, void *arg)
+{
+    rect_t r = {
+        .x = fb->width/2 - 240/2,
+        .y = fb->height/2 - 180/2,
+        .width = 240,
+        .height = 180,
+    };
+    ui_dialog_t *d = ui_dialog_new(item->list->d, r, "Wi-Fi Networks");
+
+    rect_t lr = {
+        .x = 0,
+        .y = 0,
+        .width = d->cr.width,
+        .height = d->cr.height,
+    };
+    ui_list_t *list = ui_dialog_add_list(d, lr);
+
+    ui_list_append_text(list, "Add network...", add_network_dialog, NULL);
+    ui_list_append_separator(list);
+
+    wifi_network_t *network = NULL;
+    while ((network = wifi_network_iterate(network))) {
+        ui_list_append_text(list, network->ssid, networks_popup, network);
+    }
+
+    ui_dialog_showmodal(d);
+    ui_dialog_destroy(d);
+}
+
+static void backup_config(ui_list_item_t *item, void *arg)
+{
+    wifi_backup_config();
+}
+
+static void restore_config(ui_list_item_t *item, void *arg)
+{
+    wifi_restore_config();
+}
+
+
 void wifi_configuration_dialog(ui_list_item_t *item, void *arg)
 {
     rect_t r = {
@@ -420,12 +520,13 @@ void wifi_configuration_dialog(ui_list_item_t *item, void *arg)
     };
     ui_list_t *list = ui_dialog_add_list(d, lr);
 
-    ui_list_append_text(list, wifi_state != WIFI_STATE_DISABLED ? "Disable Wi-Fi" : "Enable Wi-Fi", wifi_configuration_enable, NULL);
-    ui_list_append_text(list, "Wi-Fi status...", wifi_status_dialog, NULL);
-    ui_list_append_text(list, "Add network...", wifi_configuration_add_dialog, NULL);
-    ui_list_append_text(list, "Forget network...", NULL, NULL);
-    ui_list_append_text(list, "Backup configuration...", NULL, NULL);
-    ui_list_append_text(list, "Restore configuration...", NULL, NULL);
+    wifi_state_t wifi_state = wifi_get_state();
+
+    ui_list_append_text(list, wifi_state != WIFI_STATE_DISABLED ? "Disable Wi-Fi" : "Enable Wi-Fi", enable_toggle, NULL);
+    ui_list_append_text(list, "Status...", status_dialog, NULL);
+    ui_list_append_text(list, "Networks...", networks_dialog, NULL);
+    ui_list_append_text(list, "Backup configuration", backup_config, NULL);
+    ui_list_append_text(list, "Restore configuration", restore_config, NULL);
 
     ui_dialog_showmodal(d);
     ui_dialog_destroy(d);
